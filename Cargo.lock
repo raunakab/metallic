@@ -740,6 +740,7 @@ name = "metallic"
 version = "0.1.0"
 dependencies = [
  "pollster",
+ "thiserror",
  "wgpu",
  "winit",
 ]

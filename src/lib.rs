@@ -1,69 +1,73 @@
-use wgpu::{Backends, Instance, InstanceDescriptor, PowerPreference, RequestAdapterOptions, DeviceDescriptor, SurfaceConfiguration, TextureUsages};
-use winit::dpi::PhysicalSize;
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+use thiserror::Error;
+use wgpu::{
+    Adapter, Backends, CreateSurfaceError, Device, DeviceDescriptor, Instance, InstanceDescriptor,
+    PowerPreference, Queue, RequestAdapterOptions, RequestDeviceError, Surface,
+    SurfaceConfiguration,
+};
 use winit::window::Window;
 
-pub fn run() -> ! {
-    let event_loop = EventLoop::new().unwrap();
-    let window = Window::new(&event_loop).unwrap();
-    let window: &_ = Box::leak(Box::new(window));
+pub type MetallicResult<T> = Result<T, MetallicError>;
 
-    let size = window.inner_size();
+#[derive(Error, Debug)]
+pub enum MetallicError {
+    #[error(transparent)]
+    CreateSurfaceError(#[from] CreateSurfaceError),
 
+    #[error("No valid adapter found")]
+    RequestAdapterError,
+
+    #[error("Surface is not supported by this adapter")]
+    SurfaceError,
+
+    #[error(transparent)]
+    RequestDeviceError(#[from] RequestDeviceError),
+}
+
+#[allow(unused)]
+pub struct Engine<'a> {
+    window: &'a Window,
+    instance: Instance,
+    adapter: Adapter,
+    surface_configuration: SurfaceConfiguration,
+    surface: Surface<'a>,
+    device: Device,
+    queue: Queue,
+}
+
+pub async fn create_engine(window: &Window) -> MetallicResult<Engine> {
     let instance = Instance::new(InstanceDescriptor {
         backends: Backends::all(),
         ..Default::default()
     });
 
-    let surface = instance.create_surface(window).unwrap();
+    let surface = instance.create_surface(window)?;
 
-    let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
-        compatible_surface: Some(&surface),
-        power_preference: PowerPreference::LowPower,
-        force_fallback_adapter: false,
-        ..Default::default()
-    }))
-    .unwrap();
-
-    let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor::default(), None)).unwrap();
-
-    let mut surface_configuration = surface.get_default_config(&adapter, size.width, size.height).unwrap();
-    // surface.configure(&device, &surface_configuration);
-
-    event_loop.set_control_flow(ControlFlow::Wait);
-    event_loop
-        .run(|event, target| {
-            match event {
-                Event::LoopExiting
-                | Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                }
-                | Event::WindowEvent {
-                    event: WindowEvent::Destroyed,
-                    ..
-                } => target.exit(),
-
-                Event::AboutToWait => window.request_redraw(),
-
-                Event::WindowEvent {
-                    event: WindowEvent::RedrawRequested,
-                    ..
-                } => {
-                    // redraw
-                }
-
-                Event::WindowEvent { event: WindowEvent::Resized(PhysicalSize { width, height }), .. } => {
-                    // surface_configuration.width = width;
-                    // surface_configuration.height = height;
-                    // surface.configure(&device, &surface_configuration);
-                },
-
-                _ => (),
-            };
+    let adapter = instance
+        .request_adapter(&RequestAdapterOptions {
+            compatible_surface: Some(&surface),
+            power_preference: PowerPreference::LowPower,
+            force_fallback_adapter: false,
         })
-        .unwrap();
+        .await
+        .ok_or_else(|| MetallicError::RequestAdapterError)?;
 
-    unreachable!()
+    let (device, queue) = adapter
+        .request_device(&DeviceDescriptor::default(), None)
+        .await?;
+
+    let size = window.inner_size();
+
+    let surface_configuration = surface
+        .get_default_config(&adapter, size.width, size.height)
+        .ok_or_else(|| MetallicError::SurfaceError)?;
+
+    Ok(Engine {
+        window,
+        instance,
+        adapter,
+        surface_configuration,
+        surface,
+        device,
+        queue,
+    })
 }

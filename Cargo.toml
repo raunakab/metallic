@@ -6,5 +6,6 @@ description = "A small and portable 2d WebGPU rendering engine"
 
 [dependencies]
 pollster = "0.3.0"
+thiserror = "1.0.57"
 wgpu = "0.19"
 winit = "0.29.13"
