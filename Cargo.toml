@@ -1,0 +1,10 @@
+[package]
+name = "metallic"
+version = "0.1.0"
+edition = "2021"
+description = "Small and portable 2d WebGPU rendering engine"
+
+[dependencies]
+pollster = "0.3.0"
+wgpu = "0.19"
+winit = "0.29.13"
