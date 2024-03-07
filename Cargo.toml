@@ -2,7 +2,7 @@
 name = "metallic"
 version = "0.1.0"
 edition = "2021"
-description = "Small and portable 2d WebGPU rendering engine"
+description = "A small and portable 2d WebGPU rendering engine"
 
 [dependencies]
 pollster = "0.3.0"
