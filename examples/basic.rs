@@ -1,4 +1,4 @@
-use metallic::create_engine;
+use metallic::Engine;
 use pollster::block_on;
 use winit::{
     event::{Event, WindowEvent},
@@ -10,7 +10,7 @@ async fn run() {
     let event_loop = EventLoop::new().unwrap();
     let window = Window::new(&event_loop).unwrap();
 
-    let engine = create_engine(&window).await.unwrap();
+    let engine = Engine::new(&window).await.unwrap();
 
     event_loop
         .run(move |event, target| match event {
