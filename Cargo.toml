@@ -9,3 +9,7 @@ pollster = "0.3.0"
 thiserror = "1.0.57"
 wgpu = "0.19"
 winit = "0.29.13"
+
+[dependencies.bytemuck]
+version = "1.14.3"
+features = ["derive"]

@@ -25,6 +25,15 @@ pub enum MetallicError {
 
     #[error(transparent)]
     SurfaceError(#[from] SurfaceError),
+
+    #[error("No SRGB formats were found for this surface")]
+    NoSrgbFormatsError,
+
+    #[error("FIFO present modes not supported")]
+    FifoPresentModeNotSupportedError,
+
+    #[error("No composite alpha modes present")]
+    NoCompositeAlphaModesError,
 }
 
 #[allow(unused)]
@@ -67,16 +76,16 @@ impl<'a> Engine<'a> {
                 .formats
                 .iter()
                 .find(|format| format.is_srgb())
-                .ok_or_else(|| -> MetallicError { todo!() })?;
+                .ok_or_else(|| MetallicError::NoSrgbFormatsError)?;
             let &present_mode = capabilities
                 .present_modes
                 .iter()
                 .find(|&&present_mode| present_mode == PresentMode::Fifo)
-                .ok_or_else(|| -> MetallicError { todo!() })?;
+                .ok_or_else(|| MetallicError::FifoPresentModeNotSupportedError)?;
             let &alpha_mode = capabilities
                 .alpha_modes
                 .first()
-                .ok_or_else(|| -> MetallicError { todo!() })?;
+                .ok_or_else(|| MetallicError::NoCompositeAlphaModesError)?;
             (format, present_mode, alpha_mode)
         };
 
@@ -105,7 +114,7 @@ impl<'a> Engine<'a> {
     }
 
     pub fn render(&self) -> MetallicResult<()> {
-        let output_surface_texture = self.surface.get_current_texture().unwrap();
+        let output_surface_texture = self.surface.get_current_texture()?;
         let texture_view = output_surface_texture
             .texture
             .create_view(&TextureViewDescriptor::default());
