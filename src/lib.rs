@@ -3,7 +3,7 @@ use wgpu::{
     Adapter, Backends, Color, CommandEncoderDescriptor, CreateSurfaceError, Device,
     DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, Operations, PresentMode, Queue,
     RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, RequestDeviceError,
-    StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor,
+    StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor, RenderPipeline, RenderPipelineDescriptor, PipelineLayoutDescriptor, VertexState, include_wgsl, PrimitiveState, PrimitiveTopology, FrontFace, Face, PolygonMode, MultisampleState, FragmentState, ColorTargetState, BlendState, ColorWrites,
 };
 use winit::window::Window;
 
@@ -45,6 +45,7 @@ pub struct Engine<'a> {
     surface: Surface<'a>,
     device: Device,
     queue: Queue,
+    render_pipeline: RenderPipeline,
 }
 
 impl<'a> Engine<'a> {
@@ -102,6 +103,45 @@ impl<'a> Engine<'a> {
 
         surface.configure(&device, &surface_configuration);
 
+        let shader = device.create_shader_module(include_wgsl! { "shader.wgsl" });
+
+        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor::default());
+
+        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&pipeline_layout),
+            vertex: VertexState {
+                module: &shader,
+                entry_point: "vs",
+                buffers: &[],
+            },
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: FrontFace::Ccw,
+                cull_mode: Some(Face::Back),
+                unclipped_depth: false,
+                polygon_mode: PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(FragmentState {
+                module: &shader,
+                entry_point: "fs",
+                targets: &[Some(ColorTargetState {
+                    format,
+                    blend: Some(BlendState::REPLACE),
+                    write_mask: ColorWrites::ALL,
+                })],
+            }),
+            multiview: None,
+        });
+
         Ok(Self {
             window,
             instance,
@@ -110,6 +150,7 @@ impl<'a> Engine<'a> {
             surface,
             device,
             queue,
+            render_pipeline,
         })
     }
 
@@ -124,8 +165,7 @@ impl<'a> Engine<'a> {
             .create_command_encoder(&CommandEncoderDescriptor::default());
 
         {
-            #[allow(unused)]
-            let render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &texture_view,
                     resolve_target: None,
@@ -141,6 +181,9 @@ impl<'a> Engine<'a> {
                 })],
                 ..Default::default()
             });
+
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.draw(0..3, 0..1);
         };
 
         let command_buffer = encoder.finish();
