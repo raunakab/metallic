@@ -5,7 +5,7 @@ use wgpu::{
     RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, RequestDeviceError,
     StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor, RenderPipeline, RenderPipelineDescriptor, PipelineLayoutDescriptor, VertexState, include_wgsl, PrimitiveState, PrimitiveTopology, FrontFace, Face, PolygonMode, MultisampleState, FragmentState, ColorTargetState, BlendState, ColorWrites,
 };
-use winit::window::Window;
+use winit::{window::Window, dpi::PhysicalSize};
 
 pub type MetallicResult<T> = Result<T, MetallicError>;
 
@@ -152,6 +152,12 @@ impl<'a> Engine<'a> {
             queue,
             render_pipeline,
         })
+    }
+
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+        self.surface_configuration.width = size.width;
+        self.surface_configuration.height = size.height;
+        self.surface.configure(&self.device, &self.surface_configuration);
     }
 
     pub fn render(&self) -> MetallicResult<()> {
