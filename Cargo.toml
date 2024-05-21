@@ -12,3 +12,6 @@ winit = "0.30"
 [dependencies.bytemuck]
 version = "1.16"
 features = ["derive"]
+
+[profile.release]
+opt-level = "s"
