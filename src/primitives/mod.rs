@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests;
 
+use std::rc::Rc;
+
 use bytemuck::{Pod, Zeroable};
 use wgpu::{vertex_attr_array, Color, VertexAttribute};
 use winit::{
@@ -65,15 +67,29 @@ impl ScaledPoint {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone)]
 pub struct Shape {
     pub properties: Properties,
     pub shape_type: ShapeType,
 }
 
-#[derive(Default, Clone, Copy, PartialEq)]
+impl Shape {
+    pub fn contains_point(&self, abs_point: AbsPoint) -> bool {
+        match self.shape_type {
+            ShapeType::Rect(rect) => {
+                let AbsPoint(PhysicalPosition { x, y }) = abs_point;
+                let AbsPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl;
+                let AbsPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br;
+                x1 <= x && x <= x2 && y1 <= y && y <= y2
+            },
+        }
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct Properties {
     pub color: Color,
+    pub on_mouse_input: Option<Rc<dyn Fn(MouseInput)>>,
 }
 
 #[derive(Clone, Copy, PartialEq)]

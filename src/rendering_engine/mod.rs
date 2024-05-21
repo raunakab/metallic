@@ -14,7 +14,7 @@ use winit::{
 };
 
 use crate::{
-    primitives::{AbsPoint, IoEvent, MouseInput, Shape, ShapeType, Vertex},
+    primitives::{AbsPoint, IoEvent, MouseInput, ScaledPoint, Shape, ShapeType, Vertex},
     rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
 };
 
@@ -68,14 +68,6 @@ impl RenderingEngine {
                 IoEvent::MouseInput(mouse_input) => {
                     if let Some(point) = self.io_bundle.cursor_position {
                         find_shape_that_was_hit(&self, mouse_input, point);
-                        // let point = point
-                        //     .convert(PointFormat::Absolute,
-                        // self.wgpu_bundle.window.inner_size());
-                        // let msg = match state {
-                        //     ElementState::Pressed => "Pressed",
-                        //     ElementState::Released => "Released",
-                        // };
-                        // println!("{} at location: {:?}", msg, point);
                     };
                 }
                 IoEvent::CursorMoved(new_point) => self.io_bundle.cursor_position = Some(new_point),
@@ -143,15 +135,27 @@ fn find_shape_that_was_hit(
     mouse_input: MouseInput,
     cursor_position: AbsPoint,
 ) {
+    let mut callback = None;
+    for shape in &rendering_engine.scene_bundle.shapes {
+        if shape.contains_point(cursor_position) {
+            if let Some(on_mouse_input) = shape.properties.on_mouse_input.as_ref() {
+                callback = Some(on_mouse_input.clone());
+            };
+            break;
+        };
+    }
+    if let Some(callback) = callback {
+        callback(mouse_input);
+    };
 }
 
 fn create_buffer(rendering_engine: &RenderingEngine) -> (Buffer, usize) {
+    let size = rendering_engine.wgpu_bundle.window.inner_size();
     let vertices = rendering_engine
         .scene_bundle
         .shapes
         .iter()
-        .copied()
-        .flat_map(create_vertices)
+        .flat_map(|shape| create_vertices(shape, size))
         .collect::<Vec<_>>();
     let num_of_vertices = vertices.len();
     let buffer = rendering_engine
@@ -165,11 +169,11 @@ fn create_buffer(rendering_engine: &RenderingEngine) -> (Buffer, usize) {
     (buffer, num_of_vertices)
 }
 
-fn create_vertices(shape: Shape) -> [Vertex; 6] {
+fn create_vertices(shape: &Shape, size: PhysicalSize<u32>) -> [Vertex; 6] {
     match shape.shape_type {
         ShapeType::Rect(rect) => {
-            let AbsPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl;
-            let AbsPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br;
+            let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl.to_scaled(size);
+            let ScaledPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br.to_scaled(size);
             let Color { r, g, b, a } = shape.properties.color;
             let color = [r as _, g as _, b as _, a as _];
             let tl = Vertex {
