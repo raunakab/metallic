@@ -1,11 +1,15 @@
 use pollster::block_on;
 use todo_app::{
-    primitives::{IoEvent, MouseInput, AbsPoint, Properties, Rect, Shape, ShapeType},
+    primitives::{AbsPoint, IoEvent, MouseInput, Properties, Rect, Shape, ShapeType},
     rendering_engine::RenderingEngine,
 };
 use wgpu::Color;
 use winit::{
-    application::ApplicationHandler, dpi::PhysicalPosition, event::WindowEvent, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, window::WindowId
+    application::ApplicationHandler,
+    dpi::PhysicalPosition,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    window::WindowId,
 };
 
 #[derive(Default)]
@@ -76,27 +80,15 @@ fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
             color: Color::WHITE,
         },
         shape_type: ShapeType::Rect(Rect {
-            tl: AbsPoint(PhysicalPosition {
-                x: 0.0,
-                y: 0.0,
-            }),
-            br: AbsPoint(PhysicalPosition {
-                x: 100.0,
-                y: 100.0,
-            }),
+            tl: AbsPoint(PhysicalPosition { x: 0.0, y: 0.0 }),
+            br: AbsPoint(PhysicalPosition { x: 100.0, y: 100.0 }),
         }),
     });
     rendering_engine.add_shape(Shape {
         properties: Properties { color: Color::RED },
         shape_type: ShapeType::Rect(Rect {
-            tl: AbsPoint(PhysicalPosition {
-                x: 0.0,
-                y: 100.0,
-            }),
-            br: AbsPoint(PhysicalPosition {
-                x: 100.0,
-                y: 200.0,
-            }),
+            tl: AbsPoint(PhysicalPosition { x: 0.0, y: 100.0 }),
+            br: AbsPoint(PhysicalPosition { x: 100.0, y: 200.0 }),
         }),
     });
 }

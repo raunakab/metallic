@@ -69,7 +69,8 @@ impl RenderingEngine {
                     if let Some(point) = self.io_bundle.cursor_position {
                         find_shape_that_was_hit(&self, mouse_input, point);
                         // let point = point
-                        //     .convert(PointFormat::Absolute, self.wgpu_bundle.window.inner_size());
+                        //     .convert(PointFormat::Absolute,
+                        // self.wgpu_bundle.window.inner_size());
                         // let msg = match state {
                         //     ElementState::Pressed => "Pressed",
                         //     ElementState::Released => "Released",
