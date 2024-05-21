@@ -81,7 +81,7 @@ impl Shape {
                 let AbsPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl;
                 let AbsPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br;
                 x1 <= x && x <= x2 && y1 <= y && y <= y2
-            },
+            }
         }
     }
 }

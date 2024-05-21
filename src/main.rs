@@ -80,11 +80,9 @@ fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
     rendering_engine.add_shape(Shape {
         properties: Properties {
             color: Color::WHITE,
-            on_mouse_input: Some(Rc::new(|mouse_input| {
-                match mouse_input.state {
-                    ElementState::Pressed => println!("White pressed"),
-                    ElementState::Released => println!("White released"),
-                }
+            on_mouse_input: Some(Rc::new(|mouse_input| match mouse_input.state {
+                ElementState::Pressed => println!("White pressed"),
+                ElementState::Released => println!("White released"),
             })),
         },
         shape_type: ShapeType::Rect(Rect {
@@ -95,11 +93,9 @@ fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
     rendering_engine.add_shape(Shape {
         properties: Properties {
             color: Color::RED,
-            on_mouse_input: Some(Rc::new(|mouse_input| {
-                match mouse_input.state {
-                    ElementState::Pressed => println!("Red pressed"),
-                    ElementState::Released => println!("Red released"),
-                }
+            on_mouse_input: Some(Rc::new(|mouse_input| match mouse_input.state {
+                ElementState::Pressed => println!("Red pressed"),
+                ElementState::Released => println!("Red released"),
             })),
         },
         shape_type: ShapeType::Rect(Rect {
