@@ -1,0 +1,14 @@
+[package]
+name = "todo-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+pollster = "0.3"
+wgpu = "0.20"
+winit = "0.30"
+
+[dependencies.bytemuck]
+version = "1.16"
+features = ["derive"]
