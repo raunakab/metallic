@@ -8,10 +8,13 @@ use wgpu::{
     Buffer, BufferUsages, Color, CommandEncoderDescriptor, LoadOp, Operations,
     RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
-use winit::{dpi::PhysicalSize, event::ElementState, event_loop::ActiveEventLoop};
+use winit::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    event_loop::ActiveEventLoop,
+};
 
 use crate::{
-    primitives::{IoEvent, MouseInput, Point, PointFormat, Shape, ShapeType, Vertex},
+    primitives::{AbsPoint, IoEvent, MouseInput, Shape, ShapeType, Vertex},
     rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
 };
 
@@ -19,7 +22,7 @@ const IO_EVENTS_CAPACITY: usize = 8;
 
 struct IoBundle {
     io_events: VecDeque<IoEvent>,
-    cursor_position: Option<Point>,
+    cursor_position: Option<AbsPoint>,
 }
 
 pub struct SceneBundle {
@@ -62,15 +65,16 @@ impl RenderingEngine {
     fn handle_io_events(&mut self) {
         while let Some(io_event) = self.io_bundle.io_events.pop_front() {
             match io_event {
-                IoEvent::MouseInput(MouseInput { state, .. }) => {
+                IoEvent::MouseInput(mouse_input) => {
                     if let Some(point) = self.io_bundle.cursor_position {
-                        let point = point
-                            .convert(PointFormat::Absolute, self.wgpu_bundle.window.inner_size());
-                        let msg = match state {
-                            ElementState::Pressed => "Pressed",
-                            ElementState::Released => "Released",
-                        };
-                        println!("{} at location: {:?}", msg, point);
+                        find_shape_that_was_hit(&self, mouse_input, point);
+                        // let point = point
+                        //     .convert(PointFormat::Absolute, self.wgpu_bundle.window.inner_size());
+                        // let msg = match state {
+                        //     ElementState::Pressed => "Pressed",
+                        //     ElementState::Released => "Released",
+                        // };
+                        // println!("{} at location: {:?}", msg, point);
                     };
                 }
                 IoEvent::CursorMoved(new_point) => self.io_bundle.cursor_position = Some(new_point),
@@ -133,13 +137,20 @@ impl RenderingEngine {
     }
 }
 
+fn find_shape_that_was_hit(
+    rendering_engine: &RenderingEngine,
+    mouse_input: MouseInput,
+    cursor_position: AbsPoint,
+) {
+}
+
 fn create_buffer(rendering_engine: &RenderingEngine) -> (Buffer, usize) {
-    let size = rendering_engine.wgpu_bundle.window.inner_size();
     let vertices = rendering_engine
         .scene_bundle
         .shapes
         .iter()
-        .flat_map(|&shape| create_vertices(shape, size))
+        .copied()
+        .flat_map(create_vertices)
         .collect::<Vec<_>>();
     let num_of_vertices = vertices.len();
     let buffer = rendering_engine
@@ -153,11 +164,11 @@ fn create_buffer(rendering_engine: &RenderingEngine) -> (Buffer, usize) {
     (buffer, num_of_vertices)
 }
 
-fn create_vertices(shape: Shape, size: PhysicalSize<u32>) -> [Vertex; 6] {
+fn create_vertices(shape: Shape) -> [Vertex; 6] {
     match shape.shape_type {
         ShapeType::Rect(rect) => {
-            let Point { x: x1, y: y1, .. } = rect.tl.convert(PointFormat::Scaled, size);
-            let Point { x: x2, y: y2, .. } = rect.br.convert(PointFormat::Scaled, size);
+            let AbsPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl;
+            let AbsPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br;
             let Color { r, g, b, a } = shape.properties.color;
             let color = [r as _, g as _, b as _, a as _];
             let tl = Vertex {

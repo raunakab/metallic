@@ -23,7 +23,7 @@ impl Vertex {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IoEvent {
     MouseInput(MouseInput),
-    CursorMoved(Point),
+    CursorMoved(AbsPoint),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,45 +32,37 @@ pub struct MouseInput {
     pub button: MouseButton,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Point {
-    pub x: f32,
-    pub y: f32,
-    pub point_format: PointFormat,
-}
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct AbsPoint(pub PhysicalPosition<f32>);
 
-impl Point {
-    pub fn convert(self, new_point_format: PointFormat, size: PhysicalSize<u32>) -> Self {
-        match (self.point_format, new_point_format) {
-            (PointFormat::Absolute, PointFormat::Scaled) => Self {
-                x: abs_to_scaled(self.x, size.width),
-                y: -abs_to_scaled(self.y, size.height),
-                point_format: new_point_format,
-            },
-            (PointFormat::Scaled, PointFormat::Absolute) => Self {
-                x: scaled_to_abs(self.x, size.width),
-                y: scaled_to_abs(-self.y, size.height),
-                point_format: new_point_format,
-            },
-            _ => self,
-        }
+impl AbsPoint {
+    pub fn to_scaled(self, size: PhysicalSize<u32>) -> ScaledPoint {
+        ScaledPoint(PhysicalPosition {
+            x: abs_to_scaled_1d(self.0.x, size.width),
+            y: -abs_to_scaled_1d(self.0.y, size.height),
+        })
     }
 }
 
-impl From<PhysicalPosition<f64>> for Point {
-    fn from(position: PhysicalPosition<f64>) -> Self {
-        Self {
-            x: position.x as _,
-            y: position.y as _,
-            point_format: PointFormat::Absolute,
-        }
+impl From<PhysicalPosition<f64>> for AbsPoint {
+    fn from(point: PhysicalPosition<f64>) -> Self {
+        Self(PhysicalPosition {
+            x: point.x as _,
+            y: point.y as _,
+        })
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PointFormat {
-    Absolute,
-    Scaled,
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct ScaledPoint(pub PhysicalPosition<f32>);
+
+impl ScaledPoint {
+    pub fn to_abs(self, size: PhysicalSize<u32>) -> AbsPoint {
+        AbsPoint(PhysicalPosition {
+            x: scaled_to_abs_1d(self.0.x, size.width),
+            y: scaled_to_abs_1d(-self.0.y, size.height),
+        })
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -91,24 +83,13 @@ pub enum ShapeType {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Rect {
-    pub tl: Point,
-    pub br: Point,
+    pub tl: AbsPoint,
+    pub br: AbsPoint,
 }
 
-impl Rect {
-    pub fn convert(self, new_point_format: PointFormat, size: PhysicalSize<u32>) -> Self {
-        Self {
-            tl: self.tl.convert(new_point_format, size),
-            br: self.br.convert(new_point_format, size),
-            ..self
-        }
-    }
-}
-
-fn abs_to_scaled(a: f32, length: u32) -> f32 {
+fn abs_to_scaled_1d(a: f32, length: u32) -> f32 {
     (a / (length as f32)) * 2. - 1.
 }
-
-fn scaled_to_abs(a: f32, length: u32) -> f32 {
+fn scaled_to_abs_1d(a: f32, length: u32) -> f32 {
     ((a + 1.0) / 2.0) * (length as f32)
 }
