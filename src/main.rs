@@ -55,7 +55,7 @@ fn handle_window_event(
             WindowEvent::Resized(new_size) => {
                 rendering_engine.resize(new_size);
                 rendering_engine.redraw();
-            },
+            }
             // WindowEvent::CursorMoved { position, .. } => {
             //     // submit(IoEvent::CursorMoved(CursorMoved { position }))
             // }

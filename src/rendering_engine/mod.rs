@@ -77,7 +77,10 @@ impl RenderingEngine {
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.wgpu_bundle.surface_configuration.width = new_size.width;
         self.wgpu_bundle.surface_configuration.height = new_size.height;
-        self.wgpu_bundle.surface.configure(&self.wgpu_bundle.device, &self.wgpu_bundle.surface_configuration);
+        self.wgpu_bundle.surface.configure(
+            &self.wgpu_bundle.device,
+            &self.wgpu_bundle.surface_configuration,
+        );
     }
 
     pub fn render(&mut self) -> anyhow::Result<()> {
