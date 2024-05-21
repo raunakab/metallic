@@ -1,11 +1,24 @@
 #[cfg(test)]
 mod tests;
 
-use wgpu::Color;
+use bytemuck::{Pod, Zeroable};
+use wgpu::{vertex_attr_array, Color, VertexAttribute};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton},
 };
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
+pub struct Vertex {
+    pub point: [f32; 2],
+    pub color: [f32; 4],
+}
+
+impl Vertex {
+    pub const VERTEX_ATTRS: [VertexAttribute; 2] =
+        vertex_attr_array![0 => Float32x2, 1 => Float32x4];
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum IoEvent {

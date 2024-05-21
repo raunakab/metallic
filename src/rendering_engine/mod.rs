@@ -2,33 +2,20 @@ mod wgpu_bundle;
 
 use std::collections::VecDeque;
 
-use bytemuck::{cast_slice, Pod, Zeroable};
+use bytemuck::cast_slice;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
-    vertex_attr_array, Buffer, BufferUsages, Color, CommandEncoderDescriptor, LoadOp, Operations,
+    Buffer, BufferUsages, Color, CommandEncoderDescriptor, LoadOp, Operations,
     RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
-    VertexAttribute,
 };
 use winit::{dpi::PhysicalSize, event::ElementState, event_loop::ActiveEventLoop};
 
 use crate::{
-    primitives::{IoEvent, MouseInput, Point, PointFormat, Rect, Shape, ShapeType},
+    primitives::{IoEvent, MouseInput, Point, PointFormat, Shape, ShapeType, Vertex},
     rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
 };
 
 const IO_EVENTS_CAPACITY: usize = 8;
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
-pub struct Vertex {
-    point: [f32; 2],
-    color: [f32; 4],
-}
-
-impl Vertex {
-    pub const VERTEX_ATTRS: [VertexAttribute; 2] =
-        vertex_attr_array![0 => Float32x2, 1 => Float32x4];
-}
 
 struct IoBundle {
     io_events: VecDeque<IoEvent>,
