@@ -1,6 +1,6 @@
 use pollster::block_on;
 use todo_app::{
-    primitives::{Point, PointFormat, Rect},
+    primitives::{IoEvent, MouseInput, Point, PointFormat, Properties, Rect, Shape, ShapeType},
     rendering_engine::RenderingEngine,
 };
 use wgpu::Color;
@@ -20,6 +20,12 @@ impl ApplicationHandler for App {
         if let Err(error) = block_on(resume(self, event_loop)) {
             panic!("Error resuming application: {:?}", error);
         }
+    }
+
+    fn user_event(&mut self, _: &ActiveEventLoop, _: ()) {
+        if let Some(rendering_engine) = self.0.as_mut() {
+            rendering_engine.redraw();
+        };
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
@@ -42,11 +48,6 @@ fn handle_window_event(
     event: WindowEvent,
 ) -> anyhow::Result<()> {
     if let Some(rendering_engine) = app.0.as_mut() {
-        // let mut submit = |user_input| {
-        //     // rendering_engine.submit_user_input(user_input);
-        //     // rendering_engine.redraw();
-        // };
-
         match event {
             WindowEvent::CloseRequested | WindowEvent::Destroyed => {
                 app.0 = None;
@@ -56,12 +57,16 @@ fn handle_window_event(
                 rendering_engine.resize(new_size);
                 rendering_engine.redraw();
             }
-            // WindowEvent::CursorMoved { position, .. } => {
-            //     // submit(IoEvent::CursorMoved(CursorMoved { position }))
-            // }
-            // WindowEvent::MouseInput { .. } => {
-            //     submit(IoEvent::MouseInput(MouseInput { state, button }))
-            // }
+            WindowEvent::CursorMoved { position, .. } => {
+                let io_event = IoEvent::CursorMoved(position.into());
+                rendering_engine.register_io_event(io_event);
+                rendering_engine.redraw();
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                let io_event = IoEvent::MouseInput(MouseInput { state, button });
+                rendering_engine.register_io_event(io_event);
+                rendering_engine.redraw();
+            }
             WindowEvent::RedrawRequested => rendering_engine.render()?,
             _ => (),
         };
@@ -70,31 +75,37 @@ fn handle_window_event(
 }
 
 fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
-    rendering_engine.add_rect(Rect {
-        tl: Point {
-            x: 0.0,
-            y: 0.0,
-            point_format: PointFormat::Absolute,
+    rendering_engine.add_shape(Shape {
+        properties: Properties {
+            color: Color::WHITE,
         },
-        br: Point {
-            x: 100.0,
-            y: 100.0,
-            point_format: PointFormat::Absolute,
-        },
-        color: Color::WHITE,
+        shape_type: ShapeType::Rect(Rect {
+            tl: Point {
+                x: 0.0,
+                y: 0.0,
+                point_format: PointFormat::Absolute,
+            },
+            br: Point {
+                x: 100.0,
+                y: 100.0,
+                point_format: PointFormat::Absolute,
+            },
+        }),
     });
-    rendering_engine.add_rect(Rect {
-        tl: Point {
-            x: 0.0,
-            y: 100.0,
-            point_format: PointFormat::Absolute,
-        },
-        br: Point {
-            x: 100.0,
-            y: 200.0,
-            point_format: PointFormat::Absolute,
-        },
-        color: Color::RED,
+    rendering_engine.add_shape(Shape {
+        properties: Properties { color: Color::RED },
+        shape_type: ShapeType::Rect(Rect {
+            tl: Point {
+                x: 0.0,
+                y: 100.0,
+                point_format: PointFormat::Absolute,
+            },
+            br: Point {
+                x: 100.0,
+                y: 200.0,
+                point_format: PointFormat::Absolute,
+            },
+        }),
     });
 }
 

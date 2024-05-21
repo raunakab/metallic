@@ -2,7 +2,22 @@
 mod tests;
 
 use wgpu::Color;
-use winit::dpi::PhysicalSize;
+use winit::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    event::{ElementState, MouseButton},
+};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum IoEvent {
+    MouseInput(MouseInput),
+    CursorMoved(Point),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MouseInput {
+    pub state: ElementState,
+    pub button: MouseButton,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
@@ -29,16 +44,42 @@ impl Point {
     }
 }
 
+impl From<PhysicalPosition<f64>> for Point {
+    fn from(position: PhysicalPosition<f64>) -> Self {
+        Self {
+            x: position.x as _,
+            y: position.y as _,
+            point_format: PointFormat::Absolute,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PointFormat {
     Absolute,
     Scaled,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct Shape {
+    pub properties: Properties,
+    pub shape_type: ShapeType,
+}
+
+#[derive(Default, Clone, Copy, PartialEq)]
+pub struct Properties {
+    pub color: Color,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum ShapeType {
+    Rect(Rect),
+}
+
+#[derive(Clone, Copy, PartialEq)]
 pub struct Rect {
     pub tl: Point,
     pub br: Point,
-    pub color: Color,
 }
 
 impl Rect {
