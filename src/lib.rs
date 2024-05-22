@@ -6,4 +6,3 @@ macro_rules! im_lazy {
 
 pub mod primitives;
 pub mod rendering_engine;
-// pub mod scene;

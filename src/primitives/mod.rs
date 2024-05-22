@@ -84,6 +84,12 @@ impl Shape {
             }
         }
     }
+
+    pub fn click(&self, mouse_input: MouseInput) {
+        if let Some(on_io_event) = self.properties.on_mouse_input.as_ref() {
+            on_io_event(mouse_input);
+        }
+    }
 }
 
 #[derive(Default, Clone)]
@@ -97,7 +103,7 @@ pub enum ShapeType {
     Rect(Rect),
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq)]
 pub struct Rect {
     pub tl: AbsPoint,
     pub br: AbsPoint,

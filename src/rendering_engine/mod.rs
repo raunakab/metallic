@@ -1,8 +1,11 @@
+mod hit_engine;
 mod wgpu_bundle;
 
 use std::collections::VecDeque;
 
 use bytemuck::cast_slice;
+use hashbrown::HashMap;
+use uuid::Uuid;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferUsages, Color, CommandEncoderDescriptor, LoadOp, Operations,
@@ -13,9 +16,13 @@ use winit::{
     event_loop::ActiveEventLoop,
 };
 
+use self::hit_engine::BoundingBox;
 use crate::{
-    primitives::{AbsPoint, IoEvent, MouseInput, ScaledPoint, Shape, ShapeType, Vertex},
-    rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
+    primitives::{AbsPoint, IoEvent, Rect, ScaledPoint, Shape, ShapeType, Vertex},
+    rendering_engine::{
+        hit_engine::HitEngine,
+        wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
+    },
 };
 
 const IO_EVENTS_CAPACITY: usize = 8;
@@ -23,11 +30,12 @@ const IO_EVENTS_CAPACITY: usize = 8;
 struct IoBundle {
     io_events: VecDeque<IoEvent>,
     cursor_position: Option<AbsPoint>,
+    hit_engine: HitEngine,
 }
 
 pub struct SceneBundle {
     pub background_color: Color,
-    pub shapes: Vec<Shape>,
+    pub shapes: HashMap<Uuid, Shape>,
 }
 
 pub struct RenderingEngine {
@@ -46,11 +54,12 @@ impl RenderingEngine {
             wgpu_bundle,
             scene_bundle: SceneBundle {
                 background_color,
-                shapes: vec![],
+                shapes: HashMap::default(),
             },
             io_bundle: IoBundle {
                 io_events: VecDeque::with_capacity(IO_EVENTS_CAPACITY),
                 cursor_position: None,
+                hit_engine: HitEngine::default(),
             },
         })
     }
@@ -67,7 +76,11 @@ impl RenderingEngine {
             match io_event {
                 IoEvent::MouseInput(mouse_input) => {
                     if let Some(point) = self.io_bundle.cursor_position {
-                        find_shape_that_was_hit(&self, mouse_input, point);
+                        let hit_ids = self.io_bundle.hit_engine.hit_search(point);
+                        for hit_id in hit_ids {
+                            let shape = self.scene_bundle.shapes.get(&hit_id).unwrap();
+                            shape.click(mouse_input);
+                        }
                     };
                 }
                 IoEvent::CursorMoved(new_point) => self.io_bundle.cursor_position = Some(new_point),
@@ -76,11 +89,15 @@ impl RenderingEngine {
     }
 
     pub fn add_shape(&mut self, shape: Shape) {
-        self.scene_bundle.shapes.push(shape);
+        let id = Uuid::new_v4();
+        let bounding_box = to_bounding_box(id, &shape);
+        self.io_bundle.hit_engine.insert(bounding_box);
+        self.scene_bundle.shapes.insert(id, shape);
     }
 
     pub fn clear(&mut self) {
         self.scene_bundle.shapes.clear();
+        self.io_bundle.hit_engine.clear();
     }
 
     pub fn redraw(&self) {
@@ -130,31 +147,12 @@ impl RenderingEngine {
     }
 }
 
-fn find_shape_that_was_hit(
-    rendering_engine: &RenderingEngine,
-    mouse_input: MouseInput,
-    cursor_position: AbsPoint,
-) {
-    let mut callback = None;
-    for shape in &rendering_engine.scene_bundle.shapes {
-        if shape.contains_point(cursor_position) {
-            if let Some(on_mouse_input) = shape.properties.on_mouse_input.as_ref() {
-                callback = Some(on_mouse_input.clone());
-            };
-            break;
-        };
-    }
-    if let Some(callback) = callback {
-        callback(mouse_input);
-    };
-}
-
 fn create_buffer(rendering_engine: &RenderingEngine) -> (Buffer, usize) {
     let size = rendering_engine.wgpu_bundle.window.inner_size();
     let vertices = rendering_engine
         .scene_bundle
         .shapes
-        .iter()
+        .values()
         .flat_map(|shape| create_vertices(shape, size))
         .collect::<Vec<_>>();
     let num_of_vertices = vertices.len();
@@ -194,5 +192,11 @@ fn create_vertices(shape: &Shape, size: PhysicalSize<u32>) -> [Vertex; 6] {
             };
             [tl, br, tr, tl, bl, br]
         }
+    }
+}
+
+fn to_bounding_box(id: Uuid, shape: &Shape) -> BoundingBox {
+    match shape.shape_type {
+        ShapeType::Rect(Rect { tl, br }) => BoundingBox { id, tl, br },
     }
 }
