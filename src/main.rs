@@ -1,15 +1,13 @@
-use std::rc::Rc;
-
 use pollster::block_on;
 use todo_app::{
-    primitives::{AbsPoint, IoEvent, MouseInput, Properties, Rect, Shape, ShapeType},
+    primitives::{AbsPoint, Properties, Rect, Shape, ShapeType},
     rendering_engine::RenderingEngine,
 };
 use wgpu::Color;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalPosition,
-    event::{ElementState, WindowEvent},
+    event::WindowEvent,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::WindowId,
 };
@@ -22,12 +20,6 @@ impl ApplicationHandler for App {
         if let Err(error) = block_on(resume(self, event_loop)) {
             panic!("Error resuming application: {:?}", error);
         }
-    }
-
-    fn user_event(&mut self, _: &ActiveEventLoop, _: ()) {
-        if let Some(rendering_engine) = self.0.as_mut() {
-            rendering_engine.redraw();
-        };
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
@@ -59,16 +51,6 @@ fn handle_window_event(
                 rendering_engine.resize(new_size);
                 rendering_engine.redraw();
             }
-            WindowEvent::CursorMoved { position, .. } => {
-                let io_event = IoEvent::CursorMoved(position.into());
-                rendering_engine.register_io_event(io_event);
-                rendering_engine.redraw();
-            }
-            WindowEvent::MouseInput { state, button, .. } => {
-                let io_event = IoEvent::MouseInput(MouseInput { state, button });
-                rendering_engine.register_io_event(io_event);
-                rendering_engine.redraw();
-            }
             WindowEvent::RedrawRequested => rendering_engine.render()?,
             _ => (),
         };
@@ -80,10 +62,6 @@ fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
     rendering_engine.add_shape(Shape {
         properties: Properties {
             color: Color::WHITE,
-            on_mouse_input: Some(Rc::new(|mouse_input| match mouse_input.state {
-                ElementState::Pressed => println!("White pressed"),
-                ElementState::Released => println!("White released"),
-            })),
         },
         shape_type: ShapeType::Rect(Rect {
             tl: AbsPoint(PhysicalPosition { x: 0.0, y: 0.0 }),
@@ -91,13 +69,7 @@ fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
         }),
     });
     rendering_engine.add_shape(Shape {
-        properties: Properties {
-            color: Color::RED,
-            on_mouse_input: Some(Rc::new(|mouse_input| match mouse_input.state {
-                ElementState::Pressed => println!("Red pressed"),
-                ElementState::Released => println!("Red released"),
-            })),
-        },
+        properties: Properties { color: Color::RED },
         shape_type: ShapeType::Rect(Rect {
             tl: AbsPoint(PhysicalPosition { x: 0.0, y: 100.0 }),
             br: AbsPoint(PhysicalPosition { x: 100.0, y: 200.0 }),

@@ -1,14 +1,9 @@
 #[cfg(test)]
 mod tests;
 
-use std::rc::Rc;
-
 use bytemuck::{Pod, Zeroable};
 use wgpu::{vertex_attr_array, Color, VertexAttribute};
-use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::{ElementState, MouseButton},
-};
+use winit::dpi::{PhysicalPosition, PhysicalSize};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
@@ -20,18 +15,6 @@ pub struct Vertex {
 impl Vertex {
     pub const VERTEX_ATTRS: [VertexAttribute; 2] =
         vertex_attr_array![0 => Float32x2, 1 => Float32x4];
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum IoEvent {
-    MouseInput(MouseInput),
-    CursorMoved(AbsPoint),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MouseInput {
-    pub state: ElementState,
-    pub button: MouseButton,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -73,29 +56,9 @@ pub struct Shape {
     pub shape_type: ShapeType,
 }
 
-impl Shape {
-    pub fn contains_point(&self, abs_point: AbsPoint) -> bool {
-        match self.shape_type {
-            ShapeType::Rect(rect) => {
-                let AbsPoint(PhysicalPosition { x, y }) = abs_point;
-                let AbsPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl;
-                let AbsPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br;
-                x1 <= x && x <= x2 && y1 <= y && y <= y2
-            }
-        }
-    }
-
-    pub fn click(&self, mouse_input: MouseInput) {
-        if let Some(on_io_event) = self.properties.on_mouse_input.as_ref() {
-            on_io_event(mouse_input);
-        }
-    }
-}
-
 #[derive(Default, Clone)]
 pub struct Properties {
     pub color: Color,
-    pub on_mouse_input: Option<Rc<dyn Fn(MouseInput)>>,
 }
 
 #[derive(Clone, Copy, PartialEq)]

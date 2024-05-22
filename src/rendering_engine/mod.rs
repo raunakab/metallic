@@ -1,7 +1,5 @@
-mod hit_engine;
+// mod hit_engine;
 mod wgpu_bundle;
-
-use std::collections::VecDeque;
 
 use bytemuck::cast_slice;
 use hashbrown::HashMap;
@@ -16,22 +14,10 @@ use winit::{
     event_loop::ActiveEventLoop,
 };
 
-use self::hit_engine::BoundingBox;
 use crate::{
-    primitives::{AbsPoint, IoEvent, Rect, ScaledPoint, Shape, ShapeType, Vertex},
-    rendering_engine::{
-        hit_engine::HitEngine,
-        wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
-    },
+    primitives::{ScaledPoint, Shape, ShapeType, Vertex},
+    rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
 };
-
-const IO_EVENTS_CAPACITY: usize = 8;
-
-struct IoBundle {
-    io_events: VecDeque<IoEvent>,
-    cursor_position: Option<AbsPoint>,
-    hit_engine: HitEngine,
-}
 
 pub struct SceneBundle {
     pub background_color: Color,
@@ -41,7 +27,6 @@ pub struct SceneBundle {
 pub struct RenderingEngine {
     wgpu_bundle: WgpuBundle,
     scene_bundle: SceneBundle,
-    io_bundle: IoBundle,
 }
 
 impl RenderingEngine {
@@ -56,48 +41,16 @@ impl RenderingEngine {
                 background_color,
                 shapes: HashMap::default(),
             },
-            io_bundle: IoBundle {
-                io_events: VecDeque::with_capacity(IO_EVENTS_CAPACITY),
-                cursor_position: None,
-                hit_engine: HitEngine::default(),
-            },
         })
-    }
-
-    pub fn register_io_event(&mut self, io_event: IoEvent) {
-        while self.io_bundle.io_events.len() >= IO_EVENTS_CAPACITY {
-            self.io_bundle.io_events.pop_front();
-        }
-        self.io_bundle.io_events.push_back(io_event);
-    }
-
-    fn handle_io_events(&mut self) {
-        while let Some(io_event) = self.io_bundle.io_events.pop_front() {
-            match io_event {
-                IoEvent::MouseInput(mouse_input) => {
-                    if let Some(point) = self.io_bundle.cursor_position {
-                        let hit_ids = self.io_bundle.hit_engine.hit_search(point);
-                        for hit_id in hit_ids {
-                            let shape = self.scene_bundle.shapes.get(&hit_id).unwrap();
-                            shape.click(mouse_input);
-                        }
-                    };
-                }
-                IoEvent::CursorMoved(new_point) => self.io_bundle.cursor_position = Some(new_point),
-            }
-        }
     }
 
     pub fn add_shape(&mut self, shape: Shape) {
         let id = Uuid::new_v4();
-        let bounding_box = to_bounding_box(id, &shape);
-        self.io_bundle.hit_engine.insert(bounding_box);
         self.scene_bundle.shapes.insert(id, shape);
     }
 
     pub fn clear(&mut self) {
         self.scene_bundle.shapes.clear();
-        self.io_bundle.hit_engine.clear();
     }
 
     pub fn redraw(&self) {
@@ -114,7 +67,6 @@ impl RenderingEngine {
     }
 
     pub fn render(&mut self) -> anyhow::Result<()> {
-        self.handle_io_events();
         let (buffer, num_of_vertices) = create_buffer(self);
         let surface_texture = self.wgpu_bundle.surface.get_current_texture()?;
         let view = surface_texture
@@ -192,11 +144,5 @@ fn create_vertices(shape: &Shape, size: PhysicalSize<u32>) -> [Vertex; 6] {
             };
             [tl, br, tr, tl, bl, br]
         }
-    }
-}
-
-fn to_bounding_box(id: Uuid, shape: &Shape) -> BoundingBox {
-    match shape.shape_type {
-        ShapeType::Rect(Rect { tl, br }) => BoundingBox { id, tl, br },
     }
 }
