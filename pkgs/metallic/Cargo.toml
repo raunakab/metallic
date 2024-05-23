@@ -1,0 +1,25 @@
+[package]
+name = "metallic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.anyhow]
+workspace = true
+
+[dependencies.winit]
+workspace = true
+
+[dependencies.wgpu]
+workspace = true
+
+[dependencies.pollster]
+workspace = true
+
+[dependencies.hashbrown]
+workspace = true
+
+[dependencies.uuid]
+workspace = true
+
+[dependencies.bytemuck]
+workspace = true

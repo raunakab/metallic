@@ -1,0 +1,19 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.metallic]
+path = "../metallic"
+
+[dependencies.anyhow]
+workspace = true
+
+[dependencies.winit]
+workspace = true
+
+[dependencies.wgpu]
+workspace = true
+
+[dependencies.pollster]
+workspace = true

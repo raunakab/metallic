@@ -1,20 +1,21 @@
-[package]
-name = "todo-app"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [ "pkgs/app",
+  "pkgs/metallic",
+]
+resolver = "2"
 
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0"
 hashbrown = "0.14.5"
 pollster = "0.3"
 wgpu = "0.20"
 winit = "0.30"
 
-[dependencies.uuid]
+[workspace.dependencies.uuid]
 version = "1.8.0"
 features = ["v4", "fast-rng"]
 
-[dependencies.bytemuck]
+[workspace.dependencies.bytemuck]
 version = "1.16"
 features = ["derive"]
 

@@ -1,5 +1,5 @@
 use pollster::block_on;
-use todo_app::{
+use metallic::{
     primitives::{AbsPoint, Properties, Rect, Shape, ShapeType},
     rendering_engine::RenderingEngine,
 };
