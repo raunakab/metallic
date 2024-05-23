@@ -1,8 +1,8 @@
-use pollster::block_on;
 use metallic::{
-    primitives::{Properties, Rect, Shape, ShapeType, point},
+    primitives::{point, Properties, Rect, Shape, ShapeType},
     rendering_engine::RenderingEngine,
 };
+use pollster::block_on;
 use wgpu::Color;
 use winit::{
     application::ApplicationHandler,

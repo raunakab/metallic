@@ -4,7 +4,9 @@ use bytemuck::cast_slice;
 use hashbrown::HashMap;
 use uuid::Uuid;
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt}, Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor
+    util::{BufferInitDescriptor, DeviceExt},
+    Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -141,7 +143,7 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
                     offset + 3,
                 ]);
                 offset += 4;
-            },
+            }
         }
     }
     let vertex_buffer =
