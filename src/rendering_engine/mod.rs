@@ -1,4 +1,3 @@
-// mod hit_engine;
 mod wgpu_bundle;
 
 use bytemuck::cast_slice;
