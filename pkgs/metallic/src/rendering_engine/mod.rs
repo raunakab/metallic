@@ -4,9 +4,7 @@ use bytemuck::cast_slice;
 use hashbrown::HashMap;
 use uuid::Uuid;
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt},
-    Buffer, BufferUsages, Color, CommandEncoderDescriptor, LoadOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
+    util::{BufferInitDescriptor, DeviceExt}, Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor
 };
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -66,7 +64,7 @@ impl RenderingEngine {
     }
 
     pub fn render(&mut self) -> anyhow::Result<()> {
-        let (buffer, num_of_vertices) = create_buffer(self);
+        let buffer_bundle = create_buffer_bundle(self);
         let surface_texture = self.wgpu_bundle.surface.get_current_texture()?;
         let view = surface_texture
             .texture
@@ -88,8 +86,9 @@ impl RenderingEngine {
                 ..Default::default()
             });
             render_pass.set_pipeline(&self.wgpu_bundle.render_pipeline);
-            render_pass.set_vertex_buffer(0, buffer.slice(..));
-            render_pass.draw(0..(num_of_vertices as _), 0..1);
+            render_pass.set_vertex_buffer(0, buffer_bundle.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(buffer_bundle.index_buffer.slice(..), IndexFormat::Uint16);
+            render_pass.draw_indexed(0..(buffer_bundle.index_buffer_size as _), 0, 0..1);
         };
         let command_buffer = encoder.finish();
         self.wgpu_bundle.queue.submit([command_buffer]);
@@ -98,50 +97,74 @@ impl RenderingEngine {
     }
 }
 
-fn create_buffer(rendering_engine: &RenderingEngine) -> (Buffer, usize) {
-    let size = rendering_engine.wgpu_bundle.window.inner_size();
-    let vertices = rendering_engine
-        .scene_bundle
-        .shapes
-        .values()
-        .flat_map(|shape| create_vertices(shape, size))
-        .collect::<Vec<_>>();
-    let num_of_vertices = vertices.len();
-    let buffer = rendering_engine
-        .wgpu_bundle
-        .device
-        .create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            contents: &cast_slice(&*vertices),
-            usage: BufferUsages::VERTEX,
-        });
-    (buffer, num_of_vertices)
+struct BufferBundle {
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+    index_buffer_size: usize,
 }
 
-fn create_vertices(shape: &Shape, size: PhysicalSize<u32>) -> [Vertex; 6] {
-    match shape.shape_type {
-        ShapeType::Rect(rect) => {
-            let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl.to_scaled(size);
-            let ScaledPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br.to_scaled(size);
-            let Color { r, g, b, a } = shape.properties.color;
-            let color = [r as _, g as _, b as _, a as _];
-            let tl = Vertex {
-                point: [x1, y1],
-                color,
-            };
-            let tr = Vertex {
-                point: [x2, y1],
-                color,
-            };
-            let bl = Vertex {
-                point: [x1, y2],
-                color,
-            };
-            let br = Vertex {
-                point: [x2, y2],
-                color,
-            };
-            [tl, br, tr, tl, bl, br]
+fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
+    let size = rendering_engine.wgpu_bundle.window.inner_size();
+    let mut vertices = vec![];
+    let mut indices = vec![];
+    let mut offset = 0;
+    for (_, shape) in &rendering_engine.scene_bundle.shapes {
+        match shape.shape_type {
+            ShapeType::Rect(rect) => {
+                let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl.to_scaled(size);
+                let ScaledPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br.to_scaled(size);
+                let Color { r, g, b, a } = shape.properties.color;
+                let color = [r as _, g as _, b as _, a as _];
+                let tl = Vertex {
+                    point: [x1, y1],
+                    color,
+                };
+                let tr = Vertex {
+                    point: [x2, y1],
+                    color,
+                };
+                let bl = Vertex {
+                    point: [x1, y2],
+                    color,
+                };
+                let br = Vertex {
+                    point: [x2, y2],
+                    color,
+                };
+                vertices.extend([tl, tr, bl, br]);
+                indices.extend([
+                    offset,
+                    offset + 3,
+                    offset + 1,
+                    offset,
+                    offset + 2,
+                    offset + 3,
+                ]);
+                offset += 4;
+            },
         }
+    }
+    let vertex_buffer =
+        rendering_engine
+            .wgpu_bundle
+            .device
+            .create_buffer_init(&BufferInitDescriptor {
+                label: None,
+                contents: &cast_slice(&vertices),
+                usage: BufferUsages::VERTEX,
+            });
+    let index_buffer =
+        rendering_engine
+            .wgpu_bundle
+            .device
+            .create_buffer_init(&BufferInitDescriptor {
+                label: None,
+                contents: &cast_slice::<u16, _>(&indices),
+                usage: BufferUsages::INDEX,
+            });
+    BufferBundle {
+        vertex_buffer,
+        index_buffer,
+        index_buffer_size: indices.len(),
     }
 }
