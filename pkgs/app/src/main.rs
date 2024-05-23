@@ -1,5 +1,5 @@
 use metallic::{
-    primitives::{point, Properties, Rect, Shape, ShapeType},
+    primitives::{point, Rect, Shape, Triangle},
     rendering_engine::RenderingEngine,
 };
 use pollster::block_on;
@@ -60,18 +60,30 @@ fn handle_window_event(
 fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
     {
         rendering_engine.push_layer();
-        rendering_engine.add_shape(Shape {
-            properties: Properties {
-                color: Color::WHITE,
-            },
-            shape_type: ShapeType::Rect(Rect::with_tl_and_dims(point(0.0, 0.0), 100.0, 100.0)),
-        });
+        rendering_engine.add_shape(Shape::Rect(Rect::with_tl_and_size(
+            point(0.0, 0.0),
+            Color::WHITE,
+            100.0,
+            100.0,
+        )));
+        {
+            rendering_engine.push_layer();
+            rendering_engine.add_shape(Shape::Triangle(Triangle {
+                a: point(50.0, 0.0),
+                b: point(0.0, 75.0),
+                c: point(100.0, 75.0),
+                color: Color::BLUE,
+            }));
+            rendering_engine.pop_layer();
+        };
         rendering_engine.pop_layer();
     };
-    rendering_engine.add_shape(Shape {
-        properties: Properties { color: Color::RED },
-        shape_type: ShapeType::Rect(Rect::with_tl_and_dims(point(0.0, 0.0), 200.0, 200.0)),
-    });
+    rendering_engine.add_shape(Shape::Rect(Rect::with_tl_and_size(
+        point(0.0, 0.0),
+        Color::RED,
+        150.0,
+        150.0,
+    )));
 }
 
 fn main() -> anyhow::Result<()> {
