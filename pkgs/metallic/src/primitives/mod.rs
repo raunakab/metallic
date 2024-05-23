@@ -76,10 +76,7 @@ impl Rect {
     pub fn with_tl_and_dims(tl: AbsPoint, width: f32, height: f32) -> Self {
         let AbsPoint(PhysicalPosition { x, y }) = tl;
         let br = point(x + width, y + height);
-        Self {
-            tl,
-            br,
-        }
+        Self { tl, br }
     }
 }
 
