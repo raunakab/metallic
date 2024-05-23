@@ -1,8 +1,6 @@
 mod wgpu_bundle;
 
 use bytemuck::cast_slice;
-use hashbrown::HashMap;
-use uuid::Uuid;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations,
@@ -20,7 +18,7 @@ use crate::{
 
 pub struct SceneBundle {
     pub background_color: Color,
-    pub shapes: HashMap<Uuid, Shape>,
+    pub shapes: Vec<Shape>,
 }
 
 pub struct RenderingEngine {
@@ -38,14 +36,13 @@ impl RenderingEngine {
             wgpu_bundle,
             scene_bundle: SceneBundle {
                 background_color,
-                shapes: HashMap::default(),
+                shapes: vec![],
             },
         })
     }
 
     pub fn add_shape(&mut self, shape: Shape) {
-        let id = Uuid::new_v4();
-        self.scene_bundle.shapes.insert(id, shape);
+        self.scene_bundle.shapes.push(shape);
     }
 
     pub fn clear(&mut self) {
@@ -110,7 +107,7 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut offset = 0;
-    for (_, shape) in &rendering_engine.scene_bundle.shapes {
+    for shape in &rendering_engine.scene_bundle.shapes {
         match shape.shape_type {
             ShapeType::Rect(rect) => {
                 let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl.to_scaled(size);

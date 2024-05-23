@@ -72,6 +72,17 @@ pub struct Rect {
     pub br: AbsPoint,
 }
 
+impl Rect {
+    pub fn with_tl_and_dims(tl: AbsPoint, width: f32, height: f32) -> Self {
+        let AbsPoint(PhysicalPosition { x, y }) = tl;
+        let br = point(x + width, y + height);
+        Self {
+            tl,
+            br,
+        }
+    }
+}
+
 fn abs_to_scaled_1d(a: f32, length: u32) -> f32 {
     (a / (length as f32)) * 2. - 1.
 }
