@@ -58,15 +58,19 @@ fn handle_window_event(
 }
 
 fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
+    {
+        rendering_engine.push_layer();
+        rendering_engine.add_shape(Shape {
+            properties: Properties {
+                color: Color::WHITE,
+            },
+            shape_type: ShapeType::Rect(Rect::with_tl_and_dims(point(0.0, 0.0), 100.0, 100.0)),
+        });
+        rendering_engine.pop_layer();
+    };
     rendering_engine.add_shape(Shape {
         properties: Properties { color: Color::RED },
         shape_type: ShapeType::Rect(Rect::with_tl_and_dims(point(0.0, 0.0), 200.0, 200.0)),
-    });
-    rendering_engine.add_shape(Shape {
-        properties: Properties {
-            color: Color::WHITE,
-        },
-        shape_type: ShapeType::Rect(Rect::with_tl_and_dims(point(0.0, 0.0), 100.0, 100.0)),
     });
 }
 
