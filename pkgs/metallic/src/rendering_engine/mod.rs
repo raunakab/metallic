@@ -17,8 +17,9 @@ use crate::{
 };
 
 pub struct SceneBundle {
-    pub background_color: Color,
-    pub shapes: Vec<Shape>,
+    background_color: Color,
+    shapes: Vec<(Shape, usize)>,
+    layer: usize,
 }
 
 pub struct RenderingEngine {
@@ -37,12 +38,26 @@ impl RenderingEngine {
             scene_bundle: SceneBundle {
                 background_color,
                 shapes: vec![],
+                layer: 0,
             },
         })
     }
 
+    pub fn push_layer(&mut self) {
+        self.scene_bundle.layer = self.scene_bundle.layer.checked_add(1).expect("Too many layers pushed");
+    }
+
+    pub fn pop_layer(&mut self) {
+        self.scene_bundle.layer = self.scene_bundle.layer.saturating_sub(1);
+    }
+
     pub fn add_shape(&mut self, shape: Shape) {
-        self.scene_bundle.shapes.push(shape);
+        let layer = self.scene_bundle.layer;
+        let index = match self.scene_bundle.shapes.binary_search_by(|&(_, el_layer)| el_layer.cmp(&layer)) {
+            Ok(index) => index + 1,
+            Err(index) => index,
+        };
+        self.scene_bundle.shapes.insert(index, (shape, layer));
     }
 
     pub fn clear(&mut self) {
@@ -107,7 +122,7 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut offset = 0;
-    for shape in &rendering_engine.scene_bundle.shapes {
+    for (shape, _) in &rendering_engine.scene_bundle.shapes {
         match shape.shape_type {
             ShapeType::Rect(rect) => {
                 let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl.to_scaled(size);
