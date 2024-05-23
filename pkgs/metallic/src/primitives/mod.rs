@@ -21,7 +21,7 @@ impl Vertex {
 pub struct AbsPoint(pub PhysicalPosition<f32>);
 
 impl AbsPoint {
-    pub fn to_scaled(self, size: PhysicalSize<u32>) -> ScaledPoint {
+    pub fn to_scaled(&self, size: PhysicalSize<u32>) -> ScaledPoint {
         ScaledPoint(PhysicalPosition {
             x: abs_to_scaled_1d(self.0.x, size.width),
             y: -abs_to_scaled_1d(self.0.y, size.height),
@@ -42,7 +42,7 @@ impl From<PhysicalPosition<f64>> for AbsPoint {
 pub struct ScaledPoint(pub PhysicalPosition<f32>);
 
 impl ScaledPoint {
-    pub fn to_abs(self, size: PhysicalSize<u32>) -> AbsPoint {
+    pub fn to_abs(&self, size: PhysicalSize<u32>) -> AbsPoint {
         AbsPoint(PhysicalPosition {
             x: scaled_to_abs_1d(self.0.x, size.width),
             y: scaled_to_abs_1d(-self.0.y, size.height),
@@ -50,33 +50,32 @@ impl ScaledPoint {
     }
 }
 
-#[derive(Clone)]
-pub struct Shape {
-    pub properties: Properties,
-    pub shape_type: ShapeType,
-}
-
-#[derive(Default, Clone)]
-pub struct Properties {
-    pub color: Color,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum ShapeType {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Shape {
+    Triangle(Triangle),
     Rect(Rect),
 }
 
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct Triangle {
+    pub a: AbsPoint,
+    pub b: AbsPoint,
+    pub c: AbsPoint,
+    pub color: Color,
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
     pub tl: AbsPoint,
     pub br: AbsPoint,
+    pub color: Color,
 }
 
 impl Rect {
-    pub fn with_tl_and_dims(tl: AbsPoint, width: f32, height: f32) -> Self {
+    pub fn with_tl_and_size(tl: AbsPoint, color: Color, width: f32, height: f32) -> Self {
         let AbsPoint(PhysicalPosition { x, y }) = tl;
         let br = point(x + width, y + height);
-        Self { tl, br }
+        Self { tl, br, color }
     }
 }
 
