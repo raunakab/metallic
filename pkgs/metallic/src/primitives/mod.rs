@@ -78,3 +78,12 @@ fn abs_to_scaled_1d(a: f32, length: u32) -> f32 {
 fn scaled_to_abs_1d(a: f32, length: u32) -> f32 {
     ((a + 1.0) / 2.0) * (length as f32)
 }
+
+pub fn point(x: f32, y: f32) -> AbsPoint {
+    AbsPoint(PhysicalPosition { x, y })
+}
+
+#[cfg(test)]
+fn scaled_point(x: f32, y: f32) -> ScaledPoint {
+    ScaledPoint(PhysicalPosition { x, y })
+}
