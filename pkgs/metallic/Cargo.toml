@@ -15,11 +15,5 @@ workspace = true
 [dependencies.pollster]
 workspace = true
 
-[dependencies.hashbrown]
-workspace = true
-
-[dependencies.uuid]
-workspace = true
-
 [dependencies.bytemuck]
 workspace = true
