@@ -7,6 +7,8 @@
 - [ ] Add support to render any arbitrary shape.
   - Should be tessellated via the [`lyon`](https://crates.io/crates/lyon) crate.
   - 1.5M downloads; seems reliable as well.
+- [ ] Add support for transformations.
+  - E.g., rotations, translations, etc.
 - [x] Add proper error-handling to `metallic`.
   - Currently, just passing an `anyhow!("...")` to propogate errors up
 - [ ] Name all descriptors in the `wgpu` structs to something helpful
