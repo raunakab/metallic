@@ -62,7 +62,7 @@ pub async fn new_wgpu_bundle(event_loop: &ActiveEventLoop) -> MetallicResult<Wgp
                 .into_iter()
                 .find(|&present_mode| present_mode == PresentMode::Fifo)
                 .ok_or(MetallicError::InvalidConfigurationError(
-                    InvalidConfigurationError::NoPresentModeFoundError,
+                    InvalidConfigurationError::NoFifoPresentModeFoundError,
                 ))?;
             let &alpha_mode = capabilities.alpha_modes.first().ok_or(
                 MetallicError::InvalidConfigurationError(

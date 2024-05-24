@@ -9,33 +9,33 @@ pub type MetallicResult<T> = Result<T, MetallicError>;
 
 #[derive(Error, Debug)]
 pub enum MetallicError {
-    #[error("...")]
+    #[error("Surface error: {0:?}")]
     SurfaceError(#[from] SurfaceError),
 
-    #[error("...")]
+    #[error("Os error: {0:?}")]
     OsError(#[from] OsError),
 
-    #[error("...")]
+    #[error("Create surface error: {0:?}")]
     CreateSurfaceError(#[from] CreateSurfaceError),
 
-    #[error("...")]
+    #[error("Request device error: {0:?}")]
     RequestDeviceError(#[from] RequestDeviceError),
 
-    #[error("...")]
+    #[error("No adapter found error")]
     NoAdapterFoundError,
 
-    #[error("...")]
+    #[error("Invalid configuration error: {0:?}")]
     InvalidConfigurationError(#[from] InvalidConfigurationError),
 }
 
 #[derive(Error, Debug)]
 pub enum InvalidConfigurationError {
-    #[error("...")]
+    #[error("No 'srgb' texture-formats were found; at least one was expected")]
     NoTextureFormatFoundError,
 
-    #[error("...")]
-    NoPresentModeFoundError,
+    #[error("No 'fifo' present-mode was found; this present mode is required")]
+    NoFifoPresentModeFoundError,
 
-    #[error("...")]
+    #[error("No alpha-modes were found; at least one was expected")]
     NoAlphaModeFoundError,
 }
