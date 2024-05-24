@@ -10,7 +10,7 @@ use wgpu::{
 };
 use winit::{event_loop::ActiveEventLoop, window::Window};
 
-use crate::rendering_engine::Vertex;
+use crate::{rendering_engine::Vertex, InvalidConfigurationError, MetallicError, MetallicResult};
 
 pub struct WgpuBundle {
     pub instance: Instance,
@@ -31,7 +31,7 @@ impl Drop for WgpuBundle {
     }
 }
 
-pub async fn new_wgpu_bundle(event_loop: &ActiveEventLoop) -> anyhow::Result<WgpuBundle> {
+pub async fn new_wgpu_bundle(event_loop: &ActiveEventLoop) -> MetallicResult<WgpuBundle> {
     let instance = Instance::default();
     let window = event_loop.create_window(Window::default_attributes())?;
     let window: &'static _ = Box::leak(Box::new(window));
@@ -42,35 +42,44 @@ pub async fn new_wgpu_bundle(event_loop: &ActiveEventLoop) -> anyhow::Result<Wgp
             ..Default::default()
         })
         .await
-        .ok_or_else(im_lazy!())?;
+        .ok_or(MetallicError::NoAdapterFoundError)?;
     let (device, queue) = adapter
         .request_device(&DeviceDescriptor::default(), None)
         .await?;
-    let surface_configuration = {
-        let size = window.inner_size();
-        let capabilities = surface.get_capabilities(&adapter);
-        let format = capabilities
-            .formats
-            .into_iter()
-            .find(TextureFormat::is_srgb)
-            .ok_or_else(im_lazy!())?;
-        let present_mode = capabilities
-            .present_modes
-            .into_iter()
-            .find(|&present_mode| present_mode == PresentMode::Fifo)
-            .ok_or_else(im_lazy!())?;
-        let &alpha_mode = capabilities.alpha_modes.first().ok_or_else(im_lazy!())?;
-        SurfaceConfiguration {
-            usage: TextureUsages::RENDER_ATTACHMENT,
-            format,
-            width: size.width,
-            height: size.height,
-            present_mode,
-            alpha_mode,
-            desired_maximum_frame_latency: 1,
-            view_formats: vec![],
-        }
-    };
+    let surface_configuration =
+        {
+            let size = window.inner_size();
+            let capabilities = surface.get_capabilities(&adapter);
+            let format = capabilities
+                .formats
+                .into_iter()
+                .find(TextureFormat::is_srgb)
+                .ok_or(MetallicError::InvalidConfigurationError(
+                    InvalidConfigurationError::NoTextureFormatFoundError,
+                ))?;
+            let present_mode = capabilities
+                .present_modes
+                .into_iter()
+                .find(|&present_mode| present_mode == PresentMode::Fifo)
+                .ok_or(MetallicError::InvalidConfigurationError(
+                    InvalidConfigurationError::NoPresentModeFoundError,
+                ))?;
+            let &alpha_mode = capabilities.alpha_modes.first().ok_or(
+                MetallicError::InvalidConfigurationError(
+                    InvalidConfigurationError::NoAlphaModeFoundError,
+                ),
+            )?;
+            SurfaceConfiguration {
+                usage: TextureUsages::RENDER_ATTACHMENT,
+                format,
+                width: size.width,
+                height: size.height,
+                present_mode,
+                alpha_mode,
+                desired_maximum_frame_latency: 1,
+                view_formats: vec![],
+            }
+        };
     surface.configure(&device, &surface_configuration);
     let shader = device.create_shader_module(include_wgsl!("../shaders/main.wgsl"));
     let render_pipeline_layout =

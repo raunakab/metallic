@@ -783,9 +783,9 @@ dependencies = [
 name = "metallic"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bytemuck",
  "pollster",
+ "thiserror",
  "wgpu",
  "winit",
 ]
