@@ -13,7 +13,8 @@ use winit::{
 
 use crate::{
     primitives::{ScaledPoint, Shape, Vertex},
-    rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle}, MetallicResult,
+    rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
+    MetallicResult,
 };
 
 pub struct SceneBundle {
@@ -185,7 +186,7 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
                 vertices.extend([a, b, c]);
                 indices.extend([offset, offset + 1, offset + 2]);
                 offset += 3;
-            },
+            }
         }
     }
     let vertex_buffer =
