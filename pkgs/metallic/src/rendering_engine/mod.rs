@@ -14,6 +14,7 @@ use winit::{
 use crate::{
     primitives::{ScaledPoint, Shape, Vertex},
     rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
+    MetallicResult,
 };
 
 pub struct SceneBundle {
@@ -31,7 +32,7 @@ impl RenderingEngine {
     pub async fn new(
         event_loop: &ActiveEventLoop,
         background_color: Color,
-    ) -> anyhow::Result<Self> {
+    ) -> MetallicResult<Self> {
         let wgpu_bundle = new_wgpu_bundle(event_loop).await?;
         Ok(Self {
             wgpu_bundle,
@@ -85,7 +86,7 @@ impl RenderingEngine {
         );
     }
 
-    pub fn render(&mut self) -> anyhow::Result<()> {
+    pub fn render(&mut self) -> MetallicResult<()> {
         let buffer_bundle = create_buffer_bundle(self);
         let surface_texture = self.wgpu_bundle.surface.get_current_texture()?;
         let view = surface_texture
@@ -185,7 +186,7 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
                 vertices.extend([a, b, c]);
                 indices.extend([offset, offset + 1, offset + 2]);
                 offset += 3;
-            },
+            }
         }
     }
     let vertex_buffer =
