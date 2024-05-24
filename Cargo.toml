@@ -4,6 +4,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
+lyon = "1.0"
 pollster = "0.3"
 thiserror = "1.0"
 wgpu = "0.20"
