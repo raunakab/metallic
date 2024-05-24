@@ -6,6 +6,9 @@ edition = "2021"
 [dependencies.bytemuck]
 workspace = true
 
+[dependencies.euclid]
+workspace = true
+
 [dependencies.lyon]
 workspace = true
 

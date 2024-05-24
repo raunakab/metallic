@@ -2,6 +2,8 @@
 mod tests;
 
 use bytemuck::{Pod, Zeroable};
+use euclid::default::Point2D;
+use lyon::path::Path;
 use wgpu::{vertex_attr_array, Color, VertexAttribute};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
@@ -18,35 +20,35 @@ impl Vertex {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct AbsPoint(pub PhysicalPosition<f32>);
+pub struct AbsPoint(pub Point2D<f32>);
 
 impl AbsPoint {
     pub fn to_scaled(&self, size: PhysicalSize<u32>) -> ScaledPoint {
-        ScaledPoint(PhysicalPosition {
-            x: abs_to_scaled_1d(self.0.x, size.width),
-            y: -abs_to_scaled_1d(self.0.y, size.height),
-        })
+        ScaledPoint(Point2D::new(
+            abs_to_scaled_1d(self.0.x, size.width),
+            -abs_to_scaled_1d(self.0.y, size.height),
+        ))
     }
 }
 
 impl From<PhysicalPosition<f64>> for AbsPoint {
-    fn from(point: PhysicalPosition<f64>) -> Self {
-        Self(PhysicalPosition {
-            x: point.x as _,
-            y: point.y as _,
-        })
+    fn from(physical_position: PhysicalPosition<f64>) -> Self {
+        Self(Point2D::new(
+            physical_position.x as _,
+            physical_position.y as _,
+        ))
     }
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct ScaledPoint(pub PhysicalPosition<f32>);
+pub struct ScaledPoint(pub Point2D<f32>);
 
 impl ScaledPoint {
     pub fn to_abs(&self, size: PhysicalSize<u32>) -> AbsPoint {
-        AbsPoint(PhysicalPosition {
-            x: scaled_to_abs_1d(self.0.x, size.width),
-            y: scaled_to_abs_1d(-self.0.y, size.height),
-        })
+        AbsPoint(Point2D::new(
+            scaled_to_abs_1d(self.0.x, size.width),
+            scaled_to_abs_1d(-self.0.y, size.height),
+        ))
     }
 }
 
@@ -54,6 +56,7 @@ impl ScaledPoint {
 pub enum Shape {
     Triangle(Triangle),
     Rect(Rect),
+    Circle(Circle),
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -73,11 +76,14 @@ pub struct Rect {
 
 impl Rect {
     pub fn with_tl_and_size(tl: AbsPoint, color: Color, width: f32, height: f32) -> Self {
-        let AbsPoint(PhysicalPosition { x, y }) = tl;
-        let br = point(x + width, y + height);
+        let AbsPoint(Point2D { x, y, .. }) = tl;
+        let br = AbsPoint(Point2D::new(x + width, y + height));
         Self { tl, br, color }
     }
 }
+
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct Circle;
 
 fn abs_to_scaled_1d(a: f32, length: u32) -> f32 {
     (a / (length as f32)) * 2. - 1.
@@ -87,10 +93,10 @@ fn scaled_to_abs_1d(a: f32, length: u32) -> f32 {
 }
 
 pub fn point(x: f32, y: f32) -> AbsPoint {
-    AbsPoint(PhysicalPosition { x, y })
+    AbsPoint(Point2D::new(x, y))
 }
 
 #[cfg(test)]
 fn scaled_point(x: f32, y: f32) -> ScaledPoint {
-    ScaledPoint(PhysicalPosition { x, y })
+    ScaledPoint(Point2D::new(x, y))
 }

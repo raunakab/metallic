@@ -1,18 +1,16 @@
 mod wgpu_bundle;
 
 use bytemuck::cast_slice;
+use euclid::Point2D;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations,
     RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
-use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event_loop::ActiveEventLoop,
-};
+use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
 
 use crate::{
-    primitives::{ScaledPoint, Shape, Vertex},
+    primitives::{Circle, ScaledPoint, Shape, Vertex},
     rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
     MetallicResult,
 };
@@ -133,9 +131,31 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
     let mut offset = 0;
     for (shape, _) in &rendering_engine.scene_bundle.shapes {
         match shape {
+            Shape::Triangle(triangle) => {
+                let ScaledPoint(Point2D { x: x1, y: y1, .. }) = triangle.a.to_scaled(size);
+                let ScaledPoint(Point2D { x: x2, y: y2, .. }) = triangle.b.to_scaled(size);
+                let ScaledPoint(Point2D { x: x3, y: y3, .. }) = triangle.c.to_scaled(size);
+                let Color { r, g, b, a } = triangle.color;
+                let color = [r as _, g as _, b as _, a as _];
+                let a = Vertex {
+                    point: [x1, y1],
+                    color,
+                };
+                let b = Vertex {
+                    point: [x2, y2],
+                    color,
+                };
+                let c = Vertex {
+                    point: [x3, y3],
+                    color,
+                };
+                vertices.extend([a, b, c]);
+                indices.extend([offset, offset + 1, offset + 2]);
+                offset += 3;
+            }
             Shape::Rect(rect) => {
-                let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl.to_scaled(size);
-                let ScaledPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br.to_scaled(size);
+                let ScaledPoint(Point2D { x: x1, y: y1, .. }) = rect.tl.to_scaled(size);
+                let ScaledPoint(Point2D { x: x2, y: y2, .. }) = rect.br.to_scaled(size);
                 let Color { r, g, b, a } = rect.color;
                 let color = [r as _, g as _, b as _, a as _];
                 let tl = Vertex {
@@ -165,28 +185,7 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
                 ]);
                 offset += 4;
             }
-            Shape::Triangle(triangle) => {
-                let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = triangle.a.to_scaled(size);
-                let ScaledPoint(PhysicalPosition { x: x2, y: y2 }) = triangle.b.to_scaled(size);
-                let ScaledPoint(PhysicalPosition { x: x3, y: y3 }) = triangle.c.to_scaled(size);
-                let Color { r, g, b, a } = triangle.color;
-                let color = [r as _, g as _, b as _, a as _];
-                let a = Vertex {
-                    point: [x1, y1],
-                    color,
-                };
-                let b = Vertex {
-                    point: [x2, y2],
-                    color,
-                };
-                let c = Vertex {
-                    point: [x3, y3],
-                    color,
-                };
-                vertices.extend([a, b, c]);
-                indices.extend([offset, offset + 1, offset + 2]);
-                offset += 3;
-            }
+            Shape::Circle(Circle) => todo!(),
         }
     }
     let vertex_buffer =

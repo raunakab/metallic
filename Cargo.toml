@@ -14,5 +14,9 @@ winit = "0.30"
 version = "1.16"
 features = ["derive"]
 
+[workspace.dependencies.euclid]
+version = "0.22"
+features = ["bytemuck"]
+
 [profile.release]
 opt-level = "s"
