@@ -1,9 +1,13 @@
 # Todo
 - [x] Add rendering using index buffers.
   - Right now, everything is being rendered using plain vertex buffers, but that causes a lot of repetition of vertices.
-- [ ] Add support for glyph (text) rendering
+- [ ] Add support for glyph (text) rendering.
   - Look into using [`glyph_brush`](https://crates.io/crates/glyph_brush).
-  - 1.2M downloads; seems reliable
-- [ ] Add support to render any arbitrary shape
+  - 1.2M downloads; seems reliable.
+- [ ] Add support to render any arbitrary shape.
   - Should be tessellated via the [`lyon`](https://crates.io/crates/lyon) crate.
-  - 1.5M downloads; seems reliable as well
+  - 1.5M downloads; seems reliable as well.
+- [ ] Add proper error-handling to `metallic`.
+  - Currently, just passing an `anyhow!("...")` to propogate errors up
+- [ ] Name all descriptors in the `wgpu` structs to something helpful
+  - Right now, just defaulting them to `None`
