@@ -2,6 +2,10 @@ mod wgpu_bundle;
 
 use bytemuck::cast_slice;
 use euclid::Point2D;
+use lyon::{
+    path::{Path, Winding},
+    tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers},
+};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations,
@@ -10,7 +14,7 @@ use wgpu::{
 use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
 
 use crate::{
-    primitives::{Circle, ScaledPoint, Shape, Vertex},
+    primitives::{Circle, Id, ScaledPoint, Shape, Vertex},
     rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
     MetallicResult,
 };
@@ -85,7 +89,7 @@ impl RenderingEngine {
     }
 
     pub fn render(&mut self) -> MetallicResult<()> {
-        let buffer_bundle = create_buffer_bundle(self);
+        let buffer_bundle = create_buffer_bundle(self)?;
         let surface_texture = self.wgpu_bundle.surface.get_current_texture()?;
         let view = surface_texture
             .texture
@@ -124,11 +128,12 @@ struct BufferBundle {
     index_buffer_size: usize,
 }
 
-fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
+fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> MetallicResult<BufferBundle> {
     let size = rendering_engine.wgpu_bundle.window.inner_size();
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut offset = 0;
+    dbg!(&rendering_engine.scene_bundle.shapes);
     for (shape, _) in &rendering_engine.scene_bundle.shapes {
         match shape {
             Shape::Triangle(triangle) => {
@@ -185,7 +190,31 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
                 ]);
                 offset += 4;
             }
-            Shape::Circle(Circle) => todo!(),
+            Shape::Circle(Circle { color, .. }) => {
+                let mut fill_tessellator = FillTessellator::default();
+                let mut geometry = VertexBuffers::<_, u16>::new();
+                let circle_path = {
+                    let mut builder = Path::builder();
+                    builder.add_circle(Point2D::new(10.0, 10.0), 10., Winding::Positive);
+                    builder.build()
+                };
+                let mut buffers_builder = BuffersBuilder::new(&mut geometry, Id(Color::WHITE));
+                fill_tessellator.tessellate_path(
+                    &circle_path,
+                    &FillOptions::tolerance(0.02),
+                    &mut buffers_builder,
+                )?;
+                vertices.extend(geometry.vertices.into_iter().map(|abs_point| {
+                    let ScaledPoint(Point2D { x, y, .. }) = abs_point.to_scaled(size);
+                    let &Color { r, g, b, a } = color;
+                    Vertex {
+                        point: [x, y],
+                        color: [r as _, g as _, b as _, a as _],
+                    }
+                }));
+                indices.extend(geometry.indices.into_iter().map(|index| index + offset));
+                offset += vertices.len() as u16;
+            }
         }
     }
     let vertex_buffer =
@@ -203,12 +232,12 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
             .device
             .create_buffer_init(&BufferInitDescriptor {
                 label: None,
-                contents: &cast_slice::<u16, _>(&indices),
+                contents: &cast_slice(&indices),
                 usage: BufferUsages::INDEX,
             });
-    BufferBundle {
+    Ok(BufferBundle {
         vertex_buffer,
         index_buffer,
         index_buffer_size: indices.len(),
-    }
+    })
 }

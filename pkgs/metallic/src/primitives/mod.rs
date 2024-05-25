@@ -3,7 +3,7 @@ mod tests;
 
 use bytemuck::{Pod, Zeroable};
 use euclid::default::Point2D;
-use lyon::path::Path;
+use lyon::tessellation::{FillVertex, FillVertexConstructor};
 use wgpu::{vertex_attr_array, Color, VertexAttribute};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
@@ -42,7 +42,6 @@ impl From<PhysicalPosition<f64>> for AbsPoint {
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct ScaledPoint(pub Point2D<f32>);
-
 impl ScaledPoint {
     pub fn to_abs(&self, size: PhysicalSize<u32>) -> AbsPoint {
         AbsPoint(Point2D::new(
@@ -83,11 +82,24 @@ impl Rect {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct Circle;
+pub struct Circle {
+    pub center: AbsPoint,
+    pub radius: f32,
+    pub color: Color,
+}
+
+pub struct Id(pub Color);
+
+impl FillVertexConstructor<AbsPoint> for Id {
+    fn new_vertex(&mut self, vertex: FillVertex) -> AbsPoint {
+        AbsPoint(vertex.position())
+    }
+}
 
 fn abs_to_scaled_1d(a: f32, length: u32) -> f32 {
     (a / (length as f32)) * 2. - 1.
 }
+
 fn scaled_to_abs_1d(a: f32, length: u32) -> f32 {
     ((a + 1.0) / 2.0) * (length as f32)
 }
