@@ -1,7 +1,6 @@
-use metallic::{
-    primitives::{point, Circle, Rect, Shape },
-    rendering_engine::RenderingEngine,
-};
+use euclid::{default::Point2D, Box2D, Size2D};
+use lyon::path::{Path, Winding};
+use metallic::{primitives::Shape, rendering_engine::RenderingEngine};
 use pollster::block_on;
 use wgpu::Color;
 use winit::{
@@ -60,43 +59,29 @@ fn handle_window_event(
 fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
     {
         rendering_engine.push_layer();
-        rendering_engine.add_shape(Shape::Circle(Circle {
-            center: point(10.0, 10.0),
-            radius: 10.0,
-            color: Color::GREEN,
-        }));
+        rendering_engine.add_shape({
+            let mut builder = Path::builder();
+            builder.add_circle(Point2D::new(10.0, 10.0), 10.0, Winding::Positive);
+            let path = builder.build();
+            Shape {
+                path,
+                color: Color::WHITE,
+            }
+        });
         rendering_engine.pop_layer();
     }
-    rendering_engine.add_shape(Shape::Rect(Rect::with_tl_and_size(
-        point(0.0, 20.0),
-        Color::RED,
-        150.0,
-        150.0,
-    )));
-    // {
-    //     rendering_engine.push_layer();
-    //     // rendering_engine.add_shape(Shape::Rect(Rect::with_tl_and_size(
-    //     //     point(0.0, 0.0),
-    //     //     Color::WHITE,
-    //     //     100.0,
-    //     //     100.0,
-    //     // )));
-    //     {
-    //         rendering_engine.push_layer();
-    //         // rendering_engine.add_shape(Shape::Triangle(Triangle {
-    //         //     a: point(50.0, 0.0),
-    //         //     b: point(0.0, 75.0),
-    //         //     c: point(100.0, 75.0),
-    //         //     color: Color::BLUE,
-    //         // }));
-    //         {
-    //             rendering_engine.push_layer();
-    //             rendering_engine.pop_layer();
-    //         };
-    //         rendering_engine.pop_layer();
-    //     };
-    //     rendering_engine.pop_layer();
-    // };
+    rendering_engine.add_shape({
+        let mut builder = Path::builder();
+        builder.add_rectangle(
+            &Box2D::from_origin_and_size(Point2D::new(0.0, 20.0), Size2D::new(150.0, 150.0)),
+            Winding::Positive,
+        );
+        let path = builder.build();
+        Shape {
+            path,
+            color: Color::RED,
+        }
+    });
 }
 
 fn main() -> anyhow::Result<()> {

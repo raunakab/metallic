@@ -84,6 +84,8 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "euclid",
+ "lyon",
  "metallic",
  "pollster",
  "wgpu",
