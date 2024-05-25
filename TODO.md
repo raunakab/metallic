@@ -4,7 +4,7 @@
 - [ ] Add support for glyph (text) rendering.
   - Look into using [`glyph_brush`](https://crates.io/crates/glyph_brush).
   - 1.2M downloads; seems reliable.
-- [ ] Add support to render any arbitrary shape.
+- [x] Add support to render any arbitrary shape.
   - Should be tessellated via the [`lyon`](https://crates.io/crates/lyon) crate.
   - 1.5M downloads; seems reliable as well.
 - [ ] Add support for transformations.
