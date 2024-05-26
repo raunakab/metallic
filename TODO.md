@@ -4,6 +4,10 @@
   - 1.2M downloads; seems reliable.
 - [ ] Add support for matrix transformations.
   - E.g., rotations, translations, etc.
+- [ ] Add support for "color-brush"es.
+  - The "color-brush" concept should allow end users to *paint* their arbitrary shapes in whatever way they want.
+  - For example, the end-user could specify a "linear-gradient, red-to-blue" color brush.
+  - We would want to be able draw their arbitrary shape using a linear-gradient that starts as red on the left and turns into blue.
 - [ ] Name all descriptors in the `wgpu` structs to something helpful.
   - Right now, just defaulting them to `None`.
 
