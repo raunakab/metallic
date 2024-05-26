@@ -61,25 +61,25 @@ fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
         rendering_engine.push_layer();
         rendering_engine.add_shape({
             let mut builder = Path::builder();
-            builder.add_circle(Point2D::new(10.0, 10.0), 10.0, Winding::Positive);
+            builder.add_rectangle(
+                &Box2D::from_origin_and_size(Point2D::new(0.0, 20.0), Size2D::new(150.0, 150.0)),
+                Winding::Positive,
+            );
             let path = builder.build();
             Shape {
                 path,
-                color: Color::WHITE,
+                color: Color::RED,
             }
         });
         rendering_engine.pop_layer();
     }
     rendering_engine.add_shape({
         let mut builder = Path::builder();
-        builder.add_rectangle(
-            &Box2D::from_origin_and_size(Point2D::new(0.0, 20.0), Size2D::new(150.0, 150.0)),
-            Winding::Positive,
-        );
+        builder.add_circle(Point2D::new(100.0, 100.0), 100.0, Winding::Positive);
         let path = builder.build();
         Shape {
             path,
-            color: Color::RED,
+            color: Color::WHITE,
         }
     });
 }

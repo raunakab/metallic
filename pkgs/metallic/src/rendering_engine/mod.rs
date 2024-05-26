@@ -19,6 +19,7 @@ pub struct SceneBundle {
     background_color: Color,
     shapes: Vec<(Shape, usize)>,
     layer: usize,
+    fill_tessellator: FillTessellator,
 }
 
 pub struct RenderingEngine {
@@ -38,6 +39,7 @@ impl RenderingEngine {
                 background_color,
                 shapes: vec![],
                 layer: 0,
+                fill_tessellator: FillTessellator::default(),
             },
         })
     }
@@ -124,16 +126,15 @@ struct BufferBundle {
     index_buffer_size: usize,
 }
 
-fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> MetallicResult<BufferBundle> {
+fn create_buffer_bundle(rendering_engine: &mut RenderingEngine) -> MetallicResult<BufferBundle> {
     let size = rendering_engine.wgpu_bundle.window.inner_size();
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut offset = 0;
     for (shape, _) in &rendering_engine.scene_bundle.shapes {
-        let mut fill_tessellator = FillTessellator::default();
         let mut geometry = VertexBuffers::<_, u16>::new();
         let mut buffers_builder = BuffersBuilder::new(&mut geometry, Ctor);
-        fill_tessellator.tessellate_path(
+        rendering_engine.scene_bundle.fill_tessellator.tessellate_path(
             &shape.path,
             &FillOptions::tolerance(0.02),
             &mut buffers_builder,
