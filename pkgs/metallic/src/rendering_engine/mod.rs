@@ -134,11 +134,14 @@ fn create_buffer_bundle(rendering_engine: &mut RenderingEngine) -> MetallicResul
     for (shape, _) in &rendering_engine.scene_bundle.shapes {
         let mut geometry = VertexBuffers::<_, u16>::new();
         let mut buffers_builder = BuffersBuilder::new(&mut geometry, Ctor);
-        rendering_engine.scene_bundle.fill_tessellator.tessellate_path(
-            &shape.path,
-            &FillOptions::tolerance(0.02),
-            &mut buffers_builder,
-        )?;
+        rendering_engine
+            .scene_bundle
+            .fill_tessellator
+            .tessellate_path(
+                &shape.path,
+                &FillOptions::tolerance(0.02),
+                &mut buffers_builder,
+            )?;
         let length = geometry.vertices.len();
         vertices.extend(
             geometry
