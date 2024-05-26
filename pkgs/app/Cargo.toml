@@ -9,6 +9,12 @@ path = "../metallic"
 [dependencies.anyhow]
 workspace = true
 
+[dependencies.euclid]
+workspace = true
+
+[dependencies.lyon]
+workspace = true
+
 [dependencies.winit]
 workspace = true
 

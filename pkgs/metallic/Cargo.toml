@@ -6,14 +6,20 @@ edition = "2021"
 [dependencies.bytemuck]
 workspace = true
 
+[dependencies.euclid]
+workspace = true
+
+[dependencies.lyon]
+workspace = true
+
 [dependencies.pollster]
 workspace = true
 
 [dependencies.thiserror]
 workspace = true
 
-[dependencies.winit]
+[dependencies.wgpu]
 workspace = true
 
-[dependencies.wgpu]
+[dependencies.winit]
 workspace = true

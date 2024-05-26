@@ -1,18 +1,16 @@
 mod wgpu_bundle;
 
 use bytemuck::cast_slice;
+use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations,
     RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
-use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event_loop::ActiveEventLoop,
-};
+use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
 
 use crate::{
-    primitives::{ScaledPoint, Shape, Vertex},
+    primitives::{to_vertex, Ctor, Shape, Vertex},
     rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
     MetallicResult,
 };
@@ -61,7 +59,7 @@ impl RenderingEngine {
         let index = match self
             .scene_bundle
             .shapes
-            .binary_search_by(|&(_, el_layer)| el_layer.cmp(&layer))
+            .binary_search_by(|&(_, curr_layer)| curr_layer.cmp(&layer))
         {
             Ok(index) => index + 1,
             Err(index) => index,
@@ -87,7 +85,7 @@ impl RenderingEngine {
     }
 
     pub fn render(&mut self) -> MetallicResult<()> {
-        let buffer_bundle = create_buffer_bundle(self);
+        let buffer_bundle = create_buffer_bundle(self)?;
         let surface_texture = self.wgpu_bundle.surface.get_current_texture()?;
         let view = surface_texture
             .texture
@@ -126,68 +124,29 @@ struct BufferBundle {
     index_buffer_size: usize,
 }
 
-fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
+fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> MetallicResult<BufferBundle> {
     let size = rendering_engine.wgpu_bundle.window.inner_size();
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut offset = 0;
     for (shape, _) in &rendering_engine.scene_bundle.shapes {
-        match shape {
-            Shape::Rect(rect) => {
-                let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = rect.tl.to_scaled(size);
-                let ScaledPoint(PhysicalPosition { x: x2, y: y2 }) = rect.br.to_scaled(size);
-                let Color { r, g, b, a } = rect.color;
-                let color = [r as _, g as _, b as _, a as _];
-                let tl = Vertex {
-                    point: [x1, y1],
-                    color,
-                };
-                let tr = Vertex {
-                    point: [x2, y1],
-                    color,
-                };
-                let bl = Vertex {
-                    point: [x1, y2],
-                    color,
-                };
-                let br = Vertex {
-                    point: [x2, y2],
-                    color,
-                };
-                vertices.extend([tl, tr, bl, br]);
-                indices.extend([
-                    offset,
-                    offset + 3,
-                    offset + 1,
-                    offset,
-                    offset + 2,
-                    offset + 3,
-                ]);
-                offset += 4;
-            }
-            Shape::Triangle(triangle) => {
-                let ScaledPoint(PhysicalPosition { x: x1, y: y1 }) = triangle.a.to_scaled(size);
-                let ScaledPoint(PhysicalPosition { x: x2, y: y2 }) = triangle.b.to_scaled(size);
-                let ScaledPoint(PhysicalPosition { x: x3, y: y3 }) = triangle.c.to_scaled(size);
-                let Color { r, g, b, a } = triangle.color;
-                let color = [r as _, g as _, b as _, a as _];
-                let a = Vertex {
-                    point: [x1, y1],
-                    color,
-                };
-                let b = Vertex {
-                    point: [x2, y2],
-                    color,
-                };
-                let c = Vertex {
-                    point: [x3, y3],
-                    color,
-                };
-                vertices.extend([a, b, c]);
-                indices.extend([offset, offset + 1, offset + 2]);
-                offset += 3;
-            }
-        }
+        let mut fill_tessellator = FillTessellator::default();
+        let mut geometry = VertexBuffers::<_, u16>::new();
+        let mut buffers_builder = BuffersBuilder::new(&mut geometry, Ctor);
+        fill_tessellator.tessellate_path(
+            &shape.path,
+            &FillOptions::tolerance(0.02),
+            &mut buffers_builder,
+        )?;
+        let length = geometry.vertices.len();
+        vertices.extend(
+            geometry
+                .vertices
+                .into_iter()
+                .map(|point_2d| to_vertex(point_2d, size, shape.color)),
+        );
+        indices.extend(geometry.indices.into_iter().map(|index| index + offset));
+        offset += length as u16;
     }
     let vertex_buffer =
         rendering_engine
@@ -204,12 +163,12 @@ fn create_buffer_bundle(rendering_engine: &RenderingEngine) -> BufferBundle {
             .device
             .create_buffer_init(&BufferInitDescriptor {
                 label: None,
-                contents: &cast_slice::<u16, _>(&indices),
+                contents: &cast_slice(&indices),
                 usage: BufferUsages::INDEX,
             });
-    BufferBundle {
+    Ok(BufferBundle {
         vertex_buffer,
         index_buffer,
         index_buffer_size: indices.len(),
-    }
+    })
 }

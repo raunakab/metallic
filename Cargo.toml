@@ -4,6 +4,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
+lyon = "1.0"
 pollster = "0.3"
 thiserror = "1.0"
 wgpu = "0.20"
@@ -13,5 +14,10 @@ winit = "0.30"
 version = "1.16"
 features = ["derive"]
 
+[workspace.dependencies.euclid]
+version = "0.22"
+features = ["bytemuck"]
+
 [profile.release]
-opt-level = "s"
+opt-level = "z"
+lto = true

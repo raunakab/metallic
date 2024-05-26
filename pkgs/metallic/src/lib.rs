@@ -1,6 +1,7 @@
 pub mod primitives;
 pub mod rendering_engine;
 
+use lyon::tessellation::TessellationError;
 use thiserror::Error;
 use wgpu::{CreateSurfaceError, RequestDeviceError, SurfaceError};
 use winit::error::OsError;
@@ -20,6 +21,9 @@ pub enum MetallicError {
 
     #[error("Request device error: {0:?}")]
     RequestDeviceError(#[from] RequestDeviceError),
+
+    #[error("Tessellation error: {0:?}")]
+    TessellationError(#[from] TessellationError),
 
     #[error("No adapter found error")]
     NoAdapterFoundError,
