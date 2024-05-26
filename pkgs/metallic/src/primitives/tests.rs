@@ -9,11 +9,7 @@ fn test_abs_to_scaled_conversion() {
         ((LENGTH / 2) as _, LENGTH),
         (LENGTH as _, LENGTH),
     ];
-    let expected_outputs = [
-        -1.0,
-        0.0,
-        1.0,
-    ];
+    let expected_outputs = [-1.0, 0.0, 1.0];
     assert_eq!(inputs.len(), expected_outputs.len());
     for ((x, length), expected_output) in inputs.into_iter().zip(expected_outputs) {
         let actual_output = abs_to_scaled_1d(x, length);

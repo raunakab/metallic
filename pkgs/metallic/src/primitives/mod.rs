@@ -49,4 +49,3 @@ pub(crate) fn to_vertex(point_2d: Point2D<f32>, size: PhysicalSize<u32>, color: 
 fn abs_to_scaled_1d(x: f32, length: u32) -> f32 {
     (x / (length as f32)) * 2. - 1.
 }
-
