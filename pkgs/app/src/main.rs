@@ -1,6 +1,9 @@
 use euclid::default::Point2D;
 use lyon::path::{Path, Winding};
-use metallic::{primitives::{Object, Shape}, rendering_engine::RenderingEngine};
+use metallic::{
+    primitives::{Object, Shape},
+    rendering_engine::RenderingEngine,
+};
 use pollster::block_on;
 use wgpu::Color;
 use winit::{
