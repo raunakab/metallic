@@ -1,6 +1,9 @@
 pub mod primitives;
 pub mod rendering_engine;
 
+use std::io;
+
+use glyphon::{PrepareError, RenderError};
 use lyon::tessellation::TessellationError;
 use thiserror::Error;
 use wgpu::{CreateSurfaceError, RequestDeviceError, SurfaceError};
@@ -10,6 +13,9 @@ pub type MetallicResult<T> = Result<T, MetallicError>;
 
 #[derive(Error, Debug)]
 pub enum MetallicError {
+    #[error("Io error: {0:?}")]
+    IoError(#[from] io::Error),
+
     #[error("Surface error: {0:?}")]
     SurfaceError(#[from] SurfaceError),
 
@@ -24,6 +30,12 @@ pub enum MetallicError {
 
     #[error("Tessellation error: {0:?}")]
     TessellationError(#[from] TessellationError),
+
+    #[error("Prepare error: {0:?}")]
+    PrepareError(#[from] PrepareError),
+
+    #[error("Render error: {0:?}")]
+    RenderError(#[from] RenderError),
 
     #[error("No adapter found error")]
     NoAdapterFoundError,

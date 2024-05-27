@@ -9,6 +9,9 @@ workspace = true
 [dependencies.euclid]
 workspace = true
 
+[dependencies.glyphon]
+workspace = true
+
 [dependencies.lyon]
 workspace = true
 

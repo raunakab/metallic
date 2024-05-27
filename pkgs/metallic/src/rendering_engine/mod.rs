@@ -1,6 +1,10 @@
+mod glyph_bundle;
 mod wgpu_bundle;
 
+use std::path::Path;
+
 use bytemuck::cast_slice;
+use glyphon::{Attrs, Family, Shaping, TextBounds};
 use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
@@ -9,15 +13,19 @@ use wgpu::{
 };
 use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
 
+use self::glyph_bundle::prepare_text;
 use crate::{
-    primitives::{to_vertex, Ctor, Shape, Vertex},
-    rendering_engine::wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
+    primitives::{to_vertex, Ctor, Object, Text, Vertex},
+    rendering_engine::{
+        glyph_bundle::{draw_text, load_font, new_glyph_bundle, resize_viewport, GlyphBundle},
+        wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
+    },
     MetallicResult,
 };
 
 pub struct SceneBundle {
     background_color: Color,
-    shapes: Vec<(Shape, usize)>,
+    shapes: Vec<(Object, usize)>,
     layer: usize,
     fill_tessellator: FillTessellator,
 }
@@ -25,6 +33,7 @@ pub struct SceneBundle {
 pub struct RenderingEngine {
     wgpu_bundle: WgpuBundle,
     scene_bundle: SceneBundle,
+    glyph_bundle: GlyphBundle,
 }
 
 impl RenderingEngine {
@@ -33,6 +42,7 @@ impl RenderingEngine {
         background_color: Color,
     ) -> MetallicResult<Self> {
         let wgpu_bundle = new_wgpu_bundle(event_loop).await?;
+        let glyph_bundle = new_glyph_bundle(&wgpu_bundle);
         Ok(Self {
             wgpu_bundle,
             scene_bundle: SceneBundle {
@@ -41,6 +51,7 @@ impl RenderingEngine {
                 layer: 0,
                 fill_tessellator: FillTessellator::default(),
             },
+            glyph_bundle,
         })
     }
 
@@ -56,7 +67,12 @@ impl RenderingEngine {
         self.scene_bundle.layer = self.scene_bundle.layer.saturating_sub(1);
     }
 
-    pub fn add_shape(&mut self, shape: Shape) {
+    pub fn load_font<P: AsRef<Path>>(&mut self, path: P) -> MetallicResult<()> {
+        load_font(self, path)?;
+        Ok(())
+    }
+
+    pub fn add_object(&mut self, object: Object) {
         let layer = self.scene_bundle.layer;
         let index = match self
             .scene_bundle
@@ -66,7 +82,7 @@ impl RenderingEngine {
             Ok(index) => index + 1,
             Err(index) => index,
         };
-        self.scene_bundle.shapes.insert(index, (shape, layer));
+        self.scene_bundle.shapes.insert(index, (object, layer));
     }
 
     pub fn clear(&mut self) {
@@ -78,6 +94,7 @@ impl RenderingEngine {
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        resize_viewport(self, new_size);
         self.wgpu_bundle.surface_configuration.width = new_size.width;
         self.wgpu_bundle.surface_configuration.height = new_size.height;
         self.wgpu_bundle.surface.configure(
@@ -87,15 +104,14 @@ impl RenderingEngine {
     }
 
     pub fn render(&mut self) -> MetallicResult<()> {
-        let buffer_bundle = create_buffer_bundle(self)?;
-        let surface_texture = self.wgpu_bundle.surface.get_current_texture()?;
-        let view = surface_texture
-            .texture
-            .create_view(&TextureViewDescriptor::default());
+        let size = self.wgpu_bundle.window.inner_size();
+        let frame = self.wgpu_bundle.surface.get_current_texture()?;
+        let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut encoder = self
             .wgpu_bundle
             .device
             .create_command_encoder(&CommandEncoderDescriptor::default());
+        let buffer_bundle = create_buffer_bundle(self)?;
         {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -108,14 +124,38 @@ impl RenderingEngine {
                 })],
                 ..Default::default()
             });
+
+            fn text(text: &str) -> Text {
+                Text {
+                    text: text.into(),
+                    attrs: Attrs::new().family(Family::Name("Roboto")),
+                    shaping: Shaping::Basic,
+                    prune: false,
+                    line_height: 42.0,
+                    font_size: 30.0,
+                    top: 10.0,
+                    left: 10.0,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: 0,
+                        top: 0,
+                        right: 3000,
+                        bottom: 3000,
+                    },
+                    default_color: Color::WHITE,
+                }
+            }
+            prepare_text(self, size, text("Raunak"))?;
+            prepare_text(self, size, text("Prasad"))?;
             render_pass.set_pipeline(&self.wgpu_bundle.render_pipeline);
             render_pass.set_vertex_buffer(0, buffer_bundle.vertex_buffer.slice(..));
             render_pass.set_index_buffer(buffer_bundle.index_buffer.slice(..), IndexFormat::Uint16);
             render_pass.draw_indexed(0..(buffer_bundle.index_buffer_size as _), 0, 0..1);
+            draw_text(self, &mut render_pass)?;
         };
         let command_buffer = encoder.finish();
         self.wgpu_bundle.queue.submit([command_buffer]);
-        surface_texture.present();
+        frame.present();
         Ok(())
     }
 }
@@ -131,26 +171,31 @@ fn create_buffer_bundle(rendering_engine: &mut RenderingEngine) -> MetallicResul
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut offset = 0;
-    for (shape, _) in &rendering_engine.scene_bundle.shapes {
-        let mut geometry = VertexBuffers::<_, u16>::new();
-        let mut buffers_builder = BuffersBuilder::new(&mut geometry, Ctor);
-        rendering_engine
-            .scene_bundle
-            .fill_tessellator
-            .tessellate_path(
-                &shape.path,
-                &FillOptions::tolerance(0.02),
-                &mut buffers_builder,
-            )?;
-        let length = geometry.vertices.len();
-        vertices.extend(
-            geometry
-                .vertices
-                .into_iter()
-                .map(|point_2d| to_vertex(point_2d, size, shape.color)),
-        );
-        indices.extend(geometry.indices.into_iter().map(|index| index + offset));
-        offset += length as u16;
+    for (object, _) in &rendering_engine.scene_bundle.shapes {
+        match object {
+            Object::Shape(shape) => {
+                let mut geometry = VertexBuffers::<_, u16>::new();
+                let mut buffers_builder = BuffersBuilder::new(&mut geometry, Ctor);
+                rendering_engine
+                    .scene_bundle
+                    .fill_tessellator
+                    .tessellate_path(
+                        &shape.path,
+                        &FillOptions::tolerance(0.02),
+                        &mut buffers_builder,
+                    )?;
+                let length = geometry.vertices.len();
+                vertices.extend(
+                    geometry
+                        .vertices
+                        .into_iter()
+                        .map(|point_2d| to_vertex(point_2d, size, shape.color)),
+                );
+                indices.extend(geometry.indices.into_iter().map(|index| index + offset));
+                offset += length as u16;
+            }
+            Object::Text(..) => todo!(),
+        }
     }
     let vertex_buffer =
         rendering_engine

@@ -4,12 +4,14 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
-glyph_brush = "0.7"
 lyon = "1.0"
 pollster = "0.3"
 thiserror = "1.0"
 wgpu = "0.20"
 winit = "0.30"
+
+[workspace.dependencies.glyphon]
+git = "https://github.com/grovesNL/glyphon"
 
 [workspace.dependencies.bytemuck]
 version = "1.16"

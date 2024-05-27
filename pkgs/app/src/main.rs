@@ -1,6 +1,6 @@
-use euclid::{default::Point2D, Box2D, Size2D};
+use euclid::default::Point2D;
 use lyon::path::{Path, Winding};
-use metallic::{primitives::Shape, rendering_engine::RenderingEngine};
+use metallic::{primitives::{Object, Shape}, rendering_engine::RenderingEngine};
 use pollster::block_on;
 use wgpu::Color;
 use winit::{
@@ -29,7 +29,7 @@ impl ApplicationHandler for App {
 
 async fn resume(app: &mut App, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
     let mut rendering_engine = RenderingEngine::new(event_loop, Color::BLACK).await?;
-    build_initial_scene(&mut rendering_engine);
+    init_rendering_engine(&mut rendering_engine)?;
     app.0 = Some(rendering_engine);
     Ok(())
 }
@@ -56,32 +56,18 @@ fn handle_window_event(
     Ok(())
 }
 
-fn build_initial_scene(rendering_engine: &mut RenderingEngine) {
-    {
-        rendering_engine.push_layer();
-        rendering_engine.add_shape({
-            let mut builder = Path::builder();
-            builder.add_rectangle(
-                &Box2D::from_origin_and_size(Point2D::new(0.0, 20.0), Size2D::new(150.0, 150.0)),
-                Winding::Positive,
-            );
-            let path = builder.build();
-            Shape {
-                path,
-                color: Color::RED,
-            }
-        });
-        rendering_engine.pop_layer();
-    }
-    rendering_engine.add_shape({
+fn init_rendering_engine(rendering_engine: &mut RenderingEngine) -> anyhow::Result<()> {
+    rendering_engine.load_font("assets/Roboto-Regular.ttf")?;
+    rendering_engine.add_object({
         let mut builder = Path::builder();
         builder.add_circle(Point2D::new(100.0, 100.0), 100.0, Winding::Positive);
         let path = builder.build();
-        Shape {
+        Object::Shape(Shape {
             path,
-            color: Color::WHITE,
-        }
+            color: Color::RED,
+        })
     });
+    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
