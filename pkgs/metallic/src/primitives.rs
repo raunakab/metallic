@@ -1,9 +1,5 @@
-#[cfg(test)]
-mod tests;
-
 use bytemuck::{Pod, Zeroable};
 use euclid::default::Point2D;
-use glyphon::{Attrs, Color as GlyphonColor, Shaping, TextBounds};
 use lyon::{
     path::Path,
     tessellation::{FillVertex, FillVertexConstructor},
@@ -25,7 +21,6 @@ impl Vertex {
 
 pub enum Object {
     Shape(Shape),
-    Text(Text),
 }
 
 #[derive(Debug, Clone)]
@@ -56,28 +51,24 @@ fn abs_to_scaled_1d(x: f32, length: u32) -> f32 {
     (x / (length as f32)) * 2. - 1.
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Text {
-    pub text: String,
-    pub attrs: Attrs<'static>,
-    pub shaping: Shaping,
-    pub prune: bool,
-    pub line_height: f32,
-    pub font_size: f32,
-    pub top: f32,
-    pub left: f32,
-    pub scale: f32,
-    pub bounds: TextBounds,
-    pub default_color: Color,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-pub(crate) fn convert_color(Color { r, g, b, a }: Color) -> GlyphonColor {
-    fn f64_to_u8(x: f64) -> u8 {
-        (x * (u8::MAX as f64)) as _
+    const LENGTH: u32 = 100;
+
+    #[test]
+    fn test_abs_to_scaled_conversion() {
+        let inputs = [
+            (0.0, LENGTH),
+            ((LENGTH / 2) as _, LENGTH),
+            (LENGTH as _, LENGTH),
+        ];
+        let expected_outputs = [-1.0, 0.0, 1.0];
+        assert_eq!(inputs.len(), expected_outputs.len());
+        for ((x, length), expected_output) in inputs.into_iter().zip(expected_outputs) {
+            let actual_output = abs_to_scaled_1d(x, length);
+            assert_eq!(actual_output, expected_output);
+        }
     }
-    let r = f64_to_u8(r);
-    let g = f64_to_u8(g);
-    let b = f64_to_u8(b);
-    let a = f64_to_u8(a);
-    GlyphonColor::rgba(r, g, b, a)
 }

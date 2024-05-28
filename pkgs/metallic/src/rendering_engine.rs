@@ -1,34 +1,155 @@
-mod glyph_bundle;
-mod wgpu_bundle;
-
-use std::path::Path;
+use std::mem::size_of;
 
 use bytemuck::cast_slice;
-use glyphon::{Attrs, Family, FontSystem, Shaping, TextBounds};
 use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers};
 use wgpu::{
+    include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
-    Buffer, BufferUsages, Color, CommandEncoderDescriptor, IndexFormat, LoadOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
+    BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites,
+    CommandEncoderDescriptor, Device, DeviceDescriptor, Face, FragmentState, FrontFace,
+    IndexFormat, Instance, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
+    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PresentMode, PrimitiveState,
+    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexBufferLayout,
+    VertexState, VertexStepMode,
 };
-use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
+use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop, window::Window};
 
-use self::glyph_bundle::prepare_text;
 use crate::{
-    primitives::{to_vertex, Ctor, Object, Text, Vertex},
-    rendering_engine::{
-        glyph_bundle::{draw_text, load_font, GlyphBundle, PreparedTextBundle},
-        wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
-    },
-    MetallicResult,
+    primitives::{to_vertex, Ctor, Object, Vertex},
+    InvalidConfigurationError, MetallicError, MetallicResult,
 };
 
-pub struct SceneBundle {
+pub struct WgpuBundle {
+    pub instance: Instance,
+    pub window: &'static Window,
+    pub surface: Surface<'static>,
+    pub device: Device,
+    pub queue: Queue,
+    pub surface_configuration: SurfaceConfiguration,
+    pub shader: ShaderModule,
+    pub render_pipeline_layout: PipelineLayout,
+    pub render_pipeline: RenderPipeline,
+}
+
+impl Drop for WgpuBundle {
+    fn drop(&mut self) {
+        let window = self.window as *const _ as *mut Window;
+        let _ = unsafe { Box::from_raw(window) };
+    }
+}
+
+pub async fn new_wgpu_bundle(event_loop: &ActiveEventLoop) -> MetallicResult<WgpuBundle> {
+    let instance = Instance::default();
+    let window = event_loop.create_window(Window::default_attributes())?;
+    let window: &'static _ = Box::leak(Box::new(window));
+    let surface = instance.create_surface(window)?;
+    let adapter = instance
+        .request_adapter(&RequestAdapterOptions {
+            compatible_surface: Some(&surface),
+            ..Default::default()
+        })
+        .await
+        .ok_or(MetallicError::NoAdapterFoundError)?;
+    let (device, queue) = adapter
+        .request_device(&DeviceDescriptor::default(), None)
+        .await?;
+    let surface_configuration =
+        {
+            let size = window.inner_size();
+            let capabilities = surface.get_capabilities(&adapter);
+            let format = capabilities
+                .formats
+                .into_iter()
+                .find(TextureFormat::is_srgb)
+                .ok_or(MetallicError::InvalidConfigurationError(
+                    InvalidConfigurationError::NoTextureFormatFoundError,
+                ))?;
+            let present_mode = capabilities
+                .present_modes
+                .into_iter()
+                .find(|&present_mode| present_mode == PresentMode::Fifo)
+                .ok_or(MetallicError::InvalidConfigurationError(
+                    InvalidConfigurationError::NoFifoPresentModeFoundError,
+                ))?;
+            let &alpha_mode = capabilities.alpha_modes.first().ok_or(
+                MetallicError::InvalidConfigurationError(
+                    InvalidConfigurationError::NoAlphaModeFoundError,
+                ),
+            )?;
+            SurfaceConfiguration {
+                usage: TextureUsages::RENDER_ATTACHMENT,
+                format,
+                width: size.width,
+                height: size.height,
+                present_mode,
+                alpha_mode,
+                desired_maximum_frame_latency: 1,
+                view_formats: vec![],
+            }
+        };
+    surface.configure(&device, &surface_configuration);
+    let shader = device.create_shader_module(include_wgsl!("shaders/main.wgsl"));
+    let render_pipeline_layout =
+        device.create_pipeline_layout(&PipelineLayoutDescriptor::default());
+    let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        label: None,
+        layout: Some(&render_pipeline_layout),
+        vertex: VertexState {
+            module: &shader,
+            entry_point: "vs",
+            compilation_options: PipelineCompilationOptions::default(),
+            buffers: &[VertexBufferLayout {
+                array_stride: size_of::<Vertex>() as _,
+                step_mode: VertexStepMode::Vertex,
+                attributes: &Vertex::VERTEX_ATTRS,
+            }],
+        },
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: Some(Face::Back),
+            unclipped_depth: false,
+            polygon_mode: PolygonMode::Fill,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: MultisampleState::default(),
+        fragment: Some(FragmentState {
+            module: &shader,
+            entry_point: "fs",
+            compilation_options: PipelineCompilationOptions::default(),
+            targets: &[Some(ColorTargetState {
+                format: surface_configuration.format,
+                blend: Some(BlendState::REPLACE),
+                write_mask: ColorWrites::ALL,
+            })],
+        }),
+        multiview: None,
+    });
+    Ok(WgpuBundle {
+        instance,
+        window,
+        surface,
+        device,
+        queue,
+        surface_configuration,
+        shader,
+        render_pipeline_layout,
+        render_pipeline,
+    })
+}
+
+struct SceneBundle {
     background_color: Color,
     shapes: Vec<(Object, usize)>,
     layer: usize,
     fill_tessellator: FillTessellator,
 }
+
+pub struct GlyphBundle;
 
 pub struct RenderingEngine {
     wgpu_bundle: WgpuBundle,
@@ -50,9 +171,7 @@ impl RenderingEngine {
                 layer: 0,
                 fill_tessellator: FillTessellator::default(),
             },
-            glyph_bundle: GlyphBundle {
-                font_system: FontSystem::new(),
-            },
+            glyph_bundle: GlyphBundle,
         })
     }
 
@@ -68,10 +187,7 @@ impl RenderingEngine {
         self.scene_bundle.layer = self.scene_bundle.layer.saturating_sub(1);
     }
 
-    pub fn load_font<P: AsRef<Path>>(&mut self, path: P) -> MetallicResult<()> {
-        load_font(self, path)?;
-        Ok(())
-    }
+    pub fn load_font(&mut self) {}
 
     pub fn add_object(&mut self, object: Object) {
         let layer = self.scene_bundle.layer;
@@ -104,7 +220,6 @@ impl RenderingEngine {
     }
 
     pub fn render(&mut self) -> MetallicResult<()> {
-        let size = self.wgpu_bundle.window.inner_size();
         let frame = self.wgpu_bundle.surface.get_current_texture()?;
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut encoder = self
@@ -113,40 +228,6 @@ impl RenderingEngine {
             .create_command_encoder(&CommandEncoderDescriptor::default());
         let buffer_bundle = create_buffer_bundle(self)?;
         {
-            fn prepare_text_helper(
-                rendering_engine: &mut RenderingEngine,
-                size: PhysicalSize<u32>,
-                text: &'static str,
-                depth: usize,
-                top: f32,
-                left: f32,
-            ) -> MetallicResult<PreparedTextBundle> {
-                prepare_text(
-                    rendering_engine,
-                    size,
-                    Text {
-                        text: text.into(),
-                        attrs: Attrs::new().family(Family::Name("Roboto")),
-                        shaping: Shaping::Advanced,
-                        prune: false,
-                        line_height: 42.0,
-                        font_size: 50.0,
-                        top,
-                        left,
-                        scale: 1.0,
-                        bounds: TextBounds {
-                            left: 0,
-                            top: 0,
-                            right: 300,
-                            bottom: 300,
-                        },
-                        default_color: Color::WHITE,
-                    },
-                    depth,
-                )
-            }
-            let ptb1 = prepare_text_helper(self, size, "Raunak", 0, 0.0, 0.0)?;
-            let ptb2 = prepare_text_helper(self, size, "Prasad", 1, 100.0, 0.0)?;
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &view,
@@ -158,8 +239,6 @@ impl RenderingEngine {
                 })],
                 ..Default::default()
             });
-            draw_text(&ptb1, &mut render_pass)?;
-            draw_text(&ptb2, &mut render_pass)?;
             render_pass.set_pipeline(&self.wgpu_bundle.render_pipeline);
             render_pass.set_vertex_buffer(0, buffer_bundle.vertex_buffer.slice(..));
             render_pass.set_index_buffer(buffer_bundle.index_buffer.slice(..), IndexFormat::Uint16);
@@ -206,7 +285,6 @@ fn create_buffer_bundle(rendering_engine: &mut RenderingEngine) -> MetallicResul
                 indices.extend(geometry.indices.into_iter().map(|index| index + offset));
                 offset += length as u16;
             }
-            Object::Text(..) => todo!(),
         }
     }
     let vertex_buffer =
