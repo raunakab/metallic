@@ -134,7 +134,12 @@ impl RenderingEngine {
                         top,
                         left,
                         scale: 1.0,
-                        bounds: TextBounds { left: 0, top: 0, right: 300, bottom: 300 },
+                        bounds: TextBounds {
+                            left: 0,
+                            top: 0,
+                            right: 300,
+                            bottom: 300,
+                        },
                         default_color: Color::WHITE,
                     },
                     depth,
