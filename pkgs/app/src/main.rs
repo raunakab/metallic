@@ -1,9 +1,4 @@
-use euclid::default::Point2D;
-use lyon::path::{Path, Winding};
-use metallic::{
-    primitives::{Object, Shape},
-    rendering_engine::RenderingEngine,
-};
+use metallic::rendering_engine::RenderingEngine;
 use pollster::block_on;
 use wgpu::Color;
 use winit::{
@@ -61,15 +56,6 @@ fn handle_window_event(
 
 fn init_rendering_engine(rendering_engine: &mut RenderingEngine) -> anyhow::Result<()> {
     rendering_engine.load_font("assets/Roboto-Regular.ttf")?;
-    rendering_engine.add_object({
-        let mut builder = Path::builder();
-        builder.add_circle(Point2D::new(100.0, 100.0), 100.0, Winding::Positive);
-        let path = builder.build();
-        Object::Shape(Shape {
-            path,
-            color: Color::RED,
-        })
-    });
     Ok(())
 }
 

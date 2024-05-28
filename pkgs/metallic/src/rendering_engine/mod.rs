@@ -4,7 +4,7 @@ mod wgpu_bundle;
 use std::path::Path;
 
 use bytemuck::cast_slice;
-use glyphon::{Attrs, Family, Shaping, TextBounds};
+use glyphon::{Attrs, Family, FontSystem, Shaping, TextBounds};
 use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
@@ -17,7 +17,7 @@ use self::glyph_bundle::prepare_text;
 use crate::{
     primitives::{to_vertex, Ctor, Object, Text, Vertex},
     rendering_engine::{
-        glyph_bundle::{draw_text, load_font, new_glyph_bundle, resize_viewport, GlyphBundle},
+        glyph_bundle::{draw_text, load_font, GlyphBundle, PreparedTextBundle},
         wgpu_bundle::{new_wgpu_bundle, WgpuBundle},
     },
     MetallicResult,
@@ -42,7 +42,6 @@ impl RenderingEngine {
         background_color: Color,
     ) -> MetallicResult<Self> {
         let wgpu_bundle = new_wgpu_bundle(event_loop).await?;
-        let glyph_bundle = new_glyph_bundle(&wgpu_bundle);
         Ok(Self {
             wgpu_bundle,
             scene_bundle: SceneBundle {
@@ -51,7 +50,9 @@ impl RenderingEngine {
                 layer: 0,
                 fill_tessellator: FillTessellator::default(),
             },
-            glyph_bundle,
+            glyph_bundle: GlyphBundle {
+                font_system: FontSystem::new(),
+            },
         })
     }
 
@@ -94,7 +95,6 @@ impl RenderingEngine {
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        resize_viewport(self, new_size);
         self.wgpu_bundle.surface_configuration.width = new_size.width;
         self.wgpu_bundle.surface_configuration.height = new_size.height;
         self.wgpu_bundle.surface.configure(
@@ -113,6 +113,35 @@ impl RenderingEngine {
             .create_command_encoder(&CommandEncoderDescriptor::default());
         let buffer_bundle = create_buffer_bundle(self)?;
         {
+            fn prepare_text_helper(
+                rendering_engine: &mut RenderingEngine,
+                size: PhysicalSize<u32>,
+                text: &'static str,
+                depth: usize,
+                top: f32,
+                left: f32,
+            ) -> MetallicResult<PreparedTextBundle> {
+                prepare_text(
+                    rendering_engine,
+                    size,
+                    Text {
+                        text: text.into(),
+                        attrs: Attrs::new().family(Family::Name("Roboto")),
+                        shaping: Shaping::Advanced,
+                        prune: false,
+                        line_height: 42.0,
+                        font_size: 50.0,
+                        top,
+                        left,
+                        scale: 1.0,
+                        bounds: TextBounds { left: 0, top: 0, right: 300, bottom: 300 },
+                        default_color: Color::WHITE,
+                    },
+                    depth,
+                )
+            }
+            let ptb1 = prepare_text_helper(self, size, "Raunak", 0, 0.0, 0.0)?;
+            let ptb2 = prepare_text_helper(self, size, "Prasad", 1, 100.0, 0.0)?;
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &view,
@@ -124,34 +153,12 @@ impl RenderingEngine {
                 })],
                 ..Default::default()
             });
-
-            fn text(text: &str) -> Text {
-                Text {
-                    text: text.into(),
-                    attrs: Attrs::new().family(Family::Name("Roboto")),
-                    shaping: Shaping::Basic,
-                    prune: false,
-                    line_height: 42.0,
-                    font_size: 30.0,
-                    top: 10.0,
-                    left: 10.0,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: 3000,
-                        bottom: 3000,
-                    },
-                    default_color: Color::WHITE,
-                }
-            }
-            prepare_text(self, size, text("Raunak"))?;
-            prepare_text(self, size, text("Prasad"))?;
+            draw_text(&ptb1, &mut render_pass)?;
+            draw_text(&ptb2, &mut render_pass)?;
             render_pass.set_pipeline(&self.wgpu_bundle.render_pipeline);
             render_pass.set_vertex_buffer(0, buffer_bundle.vertex_buffer.slice(..));
             render_pass.set_index_buffer(buffer_bundle.index_buffer.slice(..), IndexFormat::Uint16);
             render_pass.draw_indexed(0..(buffer_bundle.index_buffer_size as _), 0, 0..1);
-            draw_text(self, &mut render_pass)?;
         };
         let command_buffer = encoder.finish();
         self.wgpu_bundle.queue.submit([command_buffer]);

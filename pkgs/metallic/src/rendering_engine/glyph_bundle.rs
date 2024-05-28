@@ -9,51 +9,41 @@ use winit::dpi::PhysicalSize;
 
 use crate::{
     primitives::{convert_color, Text},
-    rendering_engine::{wgpu_bundle::WgpuBundle, RenderingEngine},
+    rendering_engine::RenderingEngine,
     MetallicResult,
 };
 
 pub struct GlyphBundle {
     pub font_system: FontSystem,
-    pub swash_cache: SwashCache,
-    pub cache: Cache,
-    pub viewport: Viewport,
-    pub atlas: TextAtlas,
-    pub text_renderer: TextRenderer,
 }
 
-pub fn new_glyph_bundle(wgpu_bundle: &WgpuBundle) -> GlyphBundle {
-    let font_system = FontSystem::new();
-    let swash_cache = SwashCache::new();
-    let cache = Cache::new(&wgpu_bundle.device);
-    let viewport = Viewport::new(&wgpu_bundle.device, &cache);
-    let mut atlas = TextAtlas::new(
-        &wgpu_bundle.device,
-        &wgpu_bundle.queue,
-        &cache,
-        wgpu_bundle.surface_configuration.format,
-    );
-    let text_renderer = TextRenderer::new(
-        &mut atlas,
-        &wgpu_bundle.device,
-        MultisampleState::default(),
-        None,
-    );
-    GlyphBundle {
-        font_system,
-        swash_cache,
-        cache,
-        viewport,
-        atlas,
-        text_renderer,
-    }
+pub struct PreparedTextBundle {
+    pub text_renderer: TextRenderer,
+    pub atlas: TextAtlas,
+    pub viewport: Viewport,
 }
 
 pub fn prepare_text(
     rendering_engine: &mut RenderingEngine,
     size: PhysicalSize<u32>,
     text: Text,
-) -> MetallicResult<()> {
+    depth: usize,
+) -> MetallicResult<PreparedTextBundle> {
+    let mut swash_cache = SwashCache::new();
+    let cache = Cache::new(&rendering_engine.wgpu_bundle.device);
+    let mut viewport = Viewport::new(&rendering_engine.wgpu_bundle.device, &cache);
+    let mut atlas = TextAtlas::new(
+        &rendering_engine.wgpu_bundle.device,
+        &rendering_engine.wgpu_bundle.queue,
+        &cache,
+        rendering_engine.wgpu_bundle.surface_configuration.format,
+    );
+    let mut text_renderer = TextRenderer::new(
+        &mut atlas,
+        &rendering_engine.wgpu_bundle.device,
+        MultisampleState::default(),
+        None,
+    );
     let mut buffer = Buffer::new(
         &mut rendering_engine.glyph_bundle.font_system,
         Metrics {
@@ -73,12 +63,19 @@ pub fn prepare_text(
         text.shaping,
     );
     buffer.shape_until_scroll(&mut rendering_engine.glyph_bundle.font_system, text.prune);
-    rendering_engine.glyph_bundle.text_renderer.prepare(
+    viewport.update(
+        &rendering_engine.wgpu_bundle.queue,
+        Resolution {
+            width: size.width,
+            height: size.height,
+        },
+    );
+    text_renderer.prepare_with_depth(
         &rendering_engine.wgpu_bundle.device,
         &rendering_engine.wgpu_bundle.queue,
         &mut rendering_engine.glyph_bundle.font_system,
-        &mut rendering_engine.glyph_bundle.atlas,
-        &rendering_engine.glyph_bundle.viewport,
+        &mut atlas,
+        &viewport,
         [TextArea {
             buffer: &buffer,
             top: text.top,
@@ -87,31 +84,27 @@ pub fn prepare_text(
             bounds: text.bounds,
             default_color: convert_color(text.default_color),
         }],
-        &mut rendering_engine.glyph_bundle.swash_cache,
+        &mut swash_cache,
+        |_| depth as _,
     )?;
-    Ok(())
+    Ok(PreparedTextBundle {
+        text_renderer,
+        atlas,
+        viewport,
+    })
 }
 
-pub fn draw_text<'a: 'b, 'b>(
-    rendering_engine: &'a RenderingEngine,
+pub fn draw_text<'b>(
+    prepared_text_bundle: &'b PreparedTextBundle,
     render_pass: &mut RenderPass<'b>,
 ) -> MetallicResult<()> {
-    rendering_engine.glyph_bundle.text_renderer.render(
-        &rendering_engine.glyph_bundle.atlas,
-        &rendering_engine.glyph_bundle.viewport,
+    // prepared_text_bundle.text_renderer.prepare_with_depth(, , , , , , , )
+    prepared_text_bundle.text_renderer.render(
+        &prepared_text_bundle.atlas,
+        &prepared_text_bundle.viewport,
         render_pass,
     )?;
     Ok(())
-}
-
-pub fn resize_viewport(rendering_engine: &mut RenderingEngine, new_size: PhysicalSize<u32>) {
-    rendering_engine.glyph_bundle.viewport.update(
-        &rendering_engine.wgpu_bundle.queue,
-        Resolution {
-            width: new_size.width,
-            height: new_size.height,
-        },
-    );
 }
 
 pub fn load_font<P: AsRef<Path>>(
