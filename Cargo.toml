@@ -1,26 +1,23 @@
-[workspace]
-members = ["pkgs/app", "pkgs/metallic"]
-resolver = "2"
+[package]
+name = "metallic"
+version = "0.1.0"
+edition = "2021"
 
-[workspace.dependencies]
-anyhow = "1.0"
+[dependencies]
+cosmic-text = "0.11"
 lyon = "1.0"
-pollster = "0.3"
 thiserror = "1.0"
 wgpu = "0.20"
 winit = "0.30"
 
-[workspace.dependencies.glyphon]
-git = "https://github.com/grovesNL/glyphon"
-
-[workspace.dependencies.bytemuck]
+[dependencies.bytemuck]
 version = "1.16"
 features = ["derive"]
 
-[workspace.dependencies.euclid]
+[dependencies.euclid]
 version = "0.22"
 features = ["bytemuck"]
 
-[profile.release]
-opt-level = "z"
-lto = true
+[dev-dependencies]
+anyhow = "1.0"
+pollster = "0.3"

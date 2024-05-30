@@ -54,8 +54,7 @@ fn handle_window_event(
     Ok(())
 }
 
-fn init_rendering_engine(rendering_engine: &mut RenderingEngine) -> anyhow::Result<()> {
-    rendering_engine.load_font("assets/Roboto-Regular.ttf")?;
+fn init_rendering_engine(_: &mut RenderingEngine) -> anyhow::Result<()> {
     Ok(())
 }
 
