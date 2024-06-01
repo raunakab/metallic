@@ -2,20 +2,14 @@
 mod tests;
 
 use bytemuck::{Pod, Zeroable};
-use cosmic_text::Color as CTColor;
 use euclid::default::Point2D;
+use glyphon::Color as GColor;
 use lyon::{
     path::Path,
     tessellation::{FillVertex, FillVertexConstructor},
 };
 use wgpu::{vertex_attr_array, Color, VertexAttribute};
 use winit::dpi::PhysicalSize;
-
-#[derive(Default, Debug, Clone)]
-pub struct LayeredObject {
-    pub layer: usize,
-    pub object: Object,
-}
 
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -77,11 +71,14 @@ fn abs_to_scaled_1d(x: f32, length: u32) -> f32 {
     (x / (length as f32)) * 2. - 1.
 }
 
-pub(crate) fn color_converter(Color { r, g, b, a }: Color) -> CTColor {
-    fn convert(x: f64) -> u8 { todo!() }
-    let r = convert(r);
-    let g = convert(g);
-    let b = convert(b);
-    let a = convert(a);
-    CTColor::rgba(r, g, b, a)
+fn f64_to_u8(a: f64) -> u8 {
+    (a * (u8::MAX as f64)) as _
+}
+
+pub(crate) fn convert_color(Color { r, g, b, a }: Color) -> GColor {
+    let r = f64_to_u8(r);
+    let g = f64_to_u8(g);
+    let b = f64_to_u8(b);
+    let a = f64_to_u8(a);
+    GColor::rgba(r, g, b, a)
 }

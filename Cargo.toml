@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cosmic-text = "0.11"
 lyon = "1.0"
 thiserror = "1.0"
 wgpu = "0.20"
@@ -17,6 +16,9 @@ features = ["derive"]
 [dependencies.euclid]
 version = "0.22"
 features = ["bytemuck"]
+
+[dependencies.glyphon]
+git = "https://github.com/grovesNL/glyphon.git"
 
 [dev-dependencies]
 anyhow = "1.0"

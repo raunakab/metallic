@@ -1,4 +1,8 @@
-use metallic::rendering_engine::RenderingEngine;
+use lyon::{
+    math::Point,
+    path::{Path, Winding},
+};
+use metallic::{primitives::{Object, Shape, Text}, rendering_engine::RenderingEngine};
 use pollster::block_on;
 use wgpu::Color;
 use winit::{
@@ -26,7 +30,7 @@ impl ApplicationHandler for App {
 }
 
 async fn resume(app: &mut App, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-    let mut rendering_engine = RenderingEngine::new(event_loop, Color::BLACK).await?;
+    let mut rendering_engine = RenderingEngine::new(event_loop, Color::WHITE).await?;
     init_rendering_engine(&mut rendering_engine)?;
     app.0 = Some(rendering_engine);
     Ok(())
@@ -54,8 +58,32 @@ fn handle_window_event(
     Ok(())
 }
 
-fn init_rendering_engine(_: &mut RenderingEngine) -> anyhow::Result<()> {
+fn init_rendering_engine(rendering_engine: &mut RenderingEngine) -> anyhow::Result<()> {
+    let object_layers = rendering_engine.object_layers();
+    object_layers.clear();
+    object_layers.push(vec![
+        Object::Shape(circle_helper(Point::new(200.0, 200.0), 100.0, Color::BLUE)),
+        Object::Text(Text {
+            text: "Hello, Prasad!".into(),
+            font_size: 100.0,
+            line_height: 300.0,
+            color: Color::RED,
+        }),
+    ]);
+    object_layers.push(vec![Object::Shape(circle_helper(
+        Point::new(100.0, 100.0),
+        100.0,
+        Color::GREEN,
+    ))]);
     Ok(())
+}
+
+#[allow(dead_code)]
+fn circle_helper(center: Point, radius: f32, color: Color) -> Shape {
+    let mut builder = Path::builder();
+    builder.add_circle(center, radius, Winding::Positive);
+    let path = builder.build();
+    Shape { path, color }
 }
 
 fn main() -> anyhow::Result<()> {

@@ -1,22 +1,26 @@
-use std::mem::size_of;
+use std::{mem::size_of, path::Path};
 
 use bytemuck::cast_slice;
-use cosmic_text::{Attrs, Buffer as CTBuffer, Color as CTColor, FontSystem, LayoutGlyph, Metrics, Shaping, SwashCache};
+use glyphon::{
+    Attrs, Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport
+};
 use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers};
 use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
-    BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites, Device,
-    DeviceDescriptor, Face, FragmentState, FrontFace, Instance, MultisampleState,
-    PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PresentMode,
-    PrimitiveState, PrimitiveTopology, Queue, RenderPipeline, RenderPipelineDescriptor,
-    RequestAdapterOptions, ShaderModule, Surface, SurfaceConfiguration, TextureFormat,
-    TextureUsages, VertexBufferLayout, VertexState, VertexStepMode,
+    BlendState, Buffer, BufferUsages, Color, ColorTargetState, ColorWrites, CommandEncoder,
+    CommandEncoderDescriptor, Device, DeviceDescriptor, Face, FragmentState, FrontFace,
+    IndexFormat, Instance, LoadOp, MultisampleState, Operations, PipelineCompilationOptions,
+    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PresentMode, PrimitiveState,
+    PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
+    VertexBufferLayout, VertexState, VertexStepMode,
 };
-use winit::{event_loop::ActiveEventLoop, window::Window};
+use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop, window::Window};
 
 use crate::{
-    primitives::{to_vertex, Ctor, LayeredObject, Object, Text, Vertex, color_converter},
+    primitives::{convert_color, to_vertex, Ctor, Object, Text, Vertex},
     rendering_engine::RenderingEngine,
     InvalidConfigurationError, MetallicError, MetallicResult,
 };
@@ -42,119 +46,34 @@ impl Drop for WgpuBundle {
 
 pub struct SceneBundle {
     pub background_color: Color,
-    pub layered_objects: Vec<LayeredObject>,
-    pub layer: usize,
+    pub object_layers: Vec<Vec<Object>>,
     pub fill_tessellator: FillTessellator,
-}
-
-pub struct GlyphBundle {
     pub font_system: FontSystem,
 }
 
-pub struct BufferBundle {
-    pub vertex_buffer: Buffer,
-    pub index_buffer: Buffer,
-    pub index_buffer_size: usize,
-}
-
-pub fn create_glyph_bundle() -> GlyphBundle {
-    GlyphBundle {
-        font_system: FontSystem::new(),
-    }
-}
-
-pub fn create_scene_bundle(background_color: Color) -> SceneBundle {
-    SceneBundle {
-        background_color,
-        layered_objects: vec![],
-        layer: 0,
-        fill_tessellator: FillTessellator::default(),
-    }
-}
-
-pub fn create_buffer_bundle(
+pub fn load_font(
     rendering_engine: &mut RenderingEngine,
-) -> MetallicResult<BufferBundle> {
-    let size = rendering_engine.wgpu_bundle.window.inner_size();
-    let mut vertices = vec![];
-    let mut indices = vec![];
-    let mut offset = 0;
-    for layered_object in &rendering_engine.scene_bundle.layered_objects {
-        match &layered_object.object {
-            Object::Shape(shape) => {
-                let mut geometry = VertexBuffers::<_, u16>::new();
-                let mut buffers_builder = BuffersBuilder::new(&mut geometry, Ctor);
-                rendering_engine
-                    .scene_bundle
-                    .fill_tessellator
-                    .tessellate_path(
-                        &shape.path,
-                        &FillOptions::tolerance(0.02),
-                        &mut buffers_builder,
-                    )?;
-                let length = geometry.vertices.len();
-                vertices.extend(
-                    geometry
-                        .vertices
-                        .into_iter()
-                        .map(|point_2d| to_vertex(point_2d, size, shape.color)),
-                );
-                indices.extend(geometry.indices.into_iter().map(|index| index + offset));
-                offset += length as u16;
-            }
-            &Object::Text(Text {
-                ref text,
-                font_size,
-                line_height,
-                color,
-            }) => {
-                let mut swash_cache = SwashCache::new();
-                let metrics = Metrics {
-                    font_size,
-                    line_height,
-                };
-                let mut buffer = CTBuffer::new(&mut rendering_engine.glyph_bundle.font_system, metrics);
-                let mut buffer = buffer.borrow_with(&mut rendering_engine.glyph_bundle.font_system);
-                buffer.set_size(size.width as _, size.height as _);
-                let attrs = Attrs::new();
-                buffer.set_text(&text, attrs, Shaping::Advanced);
-                buffer.shape_until_scroll(true);
-                // buffer.glyphs();
-                for run in buffer.layout_runs() {
-                    for glyph in run.glyphs {
-                        // glyph.
-                        // LayoutGlyph;
-                    }
-                }
-                // buffer.draw(&mut swash_cache, color_converter(color), |x, y, w, h, color| {});
+    path: impl AsRef<Path>,
+) -> MetallicResult<()> {
+    rendering_engine
+        .scene_bundle
+        .font_system
+        .db_mut()
+        .load_font_file(path)?;
+    Ok(())
+}
 
-                todo!()
-            }
-        }
-    }
-    let vertex_buffer =
-        rendering_engine
-            .wgpu_bundle
-            .device
-            .create_buffer_init(&BufferInitDescriptor {
-                label: None,
-                contents: &cast_slice(&vertices),
-                usage: BufferUsages::VERTEX,
-            });
-    let index_buffer =
-        rendering_engine
-            .wgpu_bundle
-            .device
-            .create_buffer_init(&BufferInitDescriptor {
-                label: None,
-                contents: &cast_slice(&indices),
-                usage: BufferUsages::INDEX,
-            });
-    Ok(BufferBundle {
-        vertex_buffer,
-        index_buffer,
-        index_buffer_size: indices.len(),
-    })
+pub fn redraw(rendering_engine: &RenderingEngine) {
+    rendering_engine.wgpu_bundle.window.request_redraw();
+}
+
+pub fn resize(rendering_engine: &mut RenderingEngine, new_size: PhysicalSize<u32>) {
+    rendering_engine.wgpu_bundle.surface_configuration.width = new_size.width;
+    rendering_engine.wgpu_bundle.surface_configuration.height = new_size.height;
+    rendering_engine.wgpu_bundle.surface.configure(
+        &rendering_engine.wgpu_bundle.device,
+        &rendering_engine.wgpu_bundle.surface_configuration,
+    );
 }
 
 pub async fn create_wgpu_bundle(event_loop: &ActiveEventLoop) -> MetallicResult<WgpuBundle> {
@@ -207,7 +126,7 @@ pub async fn create_wgpu_bundle(event_loop: &ActiveEventLoop) -> MetallicResult<
             }
         };
     surface.configure(&device, &surface_configuration);
-    let shader = device.create_shader_module(include_wgsl!("../shaders/main.wgsl"));
+    let shader = device.create_shader_module(include_wgsl!("../shaders/solid.wgsl"));
     let render_pipeline_layout =
         device.create_pipeline_layout(&PipelineLayoutDescriptor::default());
     let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -256,5 +175,271 @@ pub async fn create_wgpu_bundle(event_loop: &ActiveEventLoop) -> MetallicResult<
         shader,
         render_pipeline_layout,
         render_pipeline,
+    })
+}
+
+pub fn create_scene_bundle(background_color: Color) -> SceneBundle {
+    SceneBundle {
+        background_color,
+        object_layers: vec![],
+        fill_tessellator: FillTessellator::default(),
+        font_system: FontSystem::new(),
+    }
+}
+
+pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
+    let surface_texture = rendering_engine.wgpu_bundle.surface.get_current_texture()?;
+    let view = surface_texture
+        .texture
+        .create_view(&TextureViewDescriptor::default());
+    let mut encoder = rendering_engine
+        .wgpu_bundle
+        .device
+        .create_command_encoder(&CommandEncoderDescriptor::default());
+    let first_and_rest = match &*rendering_engine.scene_bundle.object_layers {
+        [] => None,
+        [first] => Some((first, None)),
+        [first, rest @ ..] => Some((first, Some(rest))),
+    };
+    match first_and_rest {
+        Some((first, rest)) => {
+            render_layer(RenderLayerArgs {
+                window: rendering_engine.wgpu_bundle.window,
+                objects: first,
+                fill_tessellator: &mut rendering_engine.scene_bundle.fill_tessellator,
+                device: &rendering_engine.wgpu_bundle.device,
+                queue: &rendering_engine.wgpu_bundle.queue,
+                texture_format: rendering_engine.wgpu_bundle.surface_configuration.format,
+                encoder: &mut encoder,
+                view: &view,
+                background_color: Some(rendering_engine.scene_bundle.background_color),
+                render_pipeline: &rendering_engine.wgpu_bundle.render_pipeline,
+                font_system: &mut rendering_engine.scene_bundle.font_system,
+            })?;
+            if let Some(rest) = rest {
+                for objects in rest {
+                    render_layer(RenderLayerArgs {
+                        window: rendering_engine.wgpu_bundle.window,
+                        objects,
+                        fill_tessellator: &mut rendering_engine.scene_bundle.fill_tessellator,
+                        device: &rendering_engine.wgpu_bundle.device,
+                        queue: &rendering_engine.wgpu_bundle.queue,
+                        texture_format: rendering_engine.wgpu_bundle.surface_configuration.format,
+                        encoder: &mut encoder,
+                        view: &view,
+                        background_color: None,
+                        render_pipeline: &rendering_engine.wgpu_bundle.render_pipeline,
+                        font_system: &mut rendering_engine.scene_bundle.font_system,
+                    })?;
+                }
+            };
+        }
+        None => {
+            render_layer(RenderLayerArgs {
+                window: rendering_engine.wgpu_bundle.window,
+                objects: &vec![],
+                fill_tessellator: &mut rendering_engine.scene_bundle.fill_tessellator,
+                device: &rendering_engine.wgpu_bundle.device,
+                queue: &rendering_engine.wgpu_bundle.queue,
+                texture_format: rendering_engine.wgpu_bundle.surface_configuration.format,
+                encoder: &mut encoder,
+                view: &view,
+                background_color: Some(rendering_engine.scene_bundle.background_color),
+                render_pipeline: &rendering_engine.wgpu_bundle.render_pipeline,
+                font_system: &mut rendering_engine.scene_bundle.font_system,
+            })?;
+        }
+    };
+    let command_buffer = encoder.finish();
+    rendering_engine
+        .wgpu_bundle
+        .queue
+        .submit(Some(command_buffer));
+    surface_texture.present();
+    Ok(())
+}
+
+struct RenderLayerArgs<'a> {
+    window: &'static Window,
+    objects: &'a Vec<Object>,
+    fill_tessellator: &'a mut FillTessellator,
+    device: &'a Device,
+    queue: &'a Queue,
+    texture_format: TextureFormat,
+    encoder: &'a mut CommandEncoder,
+    view: &'a TextureView,
+    background_color: Option<Color>,
+    render_pipeline: &'a RenderPipeline,
+    font_system: &'a mut FontSystem,
+}
+
+fn render_layer(
+    RenderLayerArgs {
+        window,
+        objects,
+        fill_tessellator,
+        device,
+        queue,
+        texture_format,
+        encoder,
+        view,
+        background_color,
+        render_pipeline,
+        font_system,
+    }: RenderLayerArgs,
+) -> MetallicResult<()> {
+    let size = window.inner_size();
+    let create_buffers_output = create_buffers(CreateBuffersArgs {
+        window,
+        objects,
+        fill_tessellator,
+        device,
+        font_system,
+    })?;
+    let mut swash_cache = SwashCache::new();
+    let cache = Cache::new(device);
+    let mut viewport = Viewport::new(device, &cache);
+    viewport.update(queue, Resolution {
+        width: size.width,
+        height: size.height,
+    });
+    let mut atlas = TextAtlas::new(device, queue, &cache, texture_format);
+    let mut text_renderer =
+        TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
+    let text_areas = create_buffers_output
+        .text_buffers
+        .iter()
+        .map(|&(ref buffer, color)| TextArea {
+            buffer,
+            top: 0.0,
+            left: 0.0,
+            scale: 1.0,
+            bounds: TextBounds {
+                left: 0,
+                top: 0,
+                right: size.width as _,
+                bottom: size.height as _,
+            },
+            default_color: convert_color(color),
+        })
+        .collect::<Vec<_>>();
+    text_renderer.prepare(
+        device,
+        queue,
+        font_system,
+        &mut atlas,
+        &viewport,
+        text_areas,
+        &mut swash_cache,
+    )?;
+    let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+        color_attachments: &[Some(RenderPassColorAttachment {
+            view,
+            resolve_target: None,
+            ops: Operations {
+                load: background_color.map_or(LoadOp::Load, LoadOp::Clear),
+                store: StoreOp::Store,
+            },
+        })],
+        ..Default::default()
+    });
+    render_pass.set_pipeline(render_pipeline);
+    render_pass.set_vertex_buffer(0, create_buffers_output.vertex_buffer.slice(..));
+    render_pass.set_index_buffer(
+        create_buffers_output.index_buffer.slice(..),
+        IndexFormat::Uint16,
+    );
+    render_pass.draw_indexed(0..(create_buffers_output.len as _), 0, 0..1);
+    text_renderer.render(&atlas, &viewport, &mut render_pass)?;
+    Ok(())
+}
+
+struct CreateBuffersArgs<'a> {
+    window: &'static Window,
+    objects: &'a Vec<Object>,
+    fill_tessellator: &'a mut FillTessellator,
+    device: &'a Device,
+    font_system: &'a mut FontSystem,
+}
+
+struct CreateBuffersOutput {
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+    len: usize,
+    text_buffers: Vec<(GBuffer, Color)>,
+}
+
+fn create_buffers(
+    CreateBuffersArgs {
+        window,
+        objects,
+        fill_tessellator,
+        device,
+        font_system,
+    }: CreateBuffersArgs,
+) -> MetallicResult<CreateBuffersOutput> {
+    let size = window.inner_size();
+    let mut vertices = vec![];
+    let mut indices = vec![];
+    let mut text_buffers = vec![];
+    let mut offset = 0;
+    for object in objects {
+        match object {
+            Object::Shape(shape) => {
+                let mut geometry = VertexBuffers::<_, u16>::new();
+                let mut buffers_builder = BuffersBuilder::new(&mut geometry, Ctor);
+                fill_tessellator.tessellate_path(
+                    &shape.path,
+                    &FillOptions::tolerance(0.02),
+                    &mut buffers_builder,
+                )?;
+                let length = geometry.vertices.len();
+                vertices.extend(
+                    geometry
+                        .vertices
+                        .into_iter()
+                        .map(|point_2d| to_vertex(point_2d, size, shape.color)),
+                );
+                indices.extend(geometry.indices.into_iter().map(|index| index + offset));
+                offset += length as u16;
+            }
+            &Object::Text(Text {
+                ref text,
+                font_size,
+                line_height,
+                color,
+            }) => {
+                let mut text_buffer = GBuffer::new(
+                    font_system,
+                    Metrics {
+                        font_size,
+                        line_height,
+                    },
+                );
+                {
+                    let mut text_buffer = text_buffer.borrow_with(font_system);
+                    text_buffer.set_size(size.width as _, size.height as _);
+                    text_buffer.set_text(&text, Attrs::new(), Shaping::Advanced);
+                    text_buffer.shape_until_scroll(false);
+                };
+                text_buffers.push((text_buffer, color));
+            }
+        }
+    }
+    let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: None,
+        contents: &cast_slice(&vertices),
+        usage: BufferUsages::VERTEX,
+    });
+    let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: None,
+        contents: &cast_slice(&indices),
+        usage: BufferUsages::INDEX,
+    });
+    Ok(CreateBuffersOutput {
+        vertex_buffer,
+        index_buffer,
+        len: indices.len(),
+        text_buffers,
     })
 }
