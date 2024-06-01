@@ -2,7 +2,10 @@ use lyon::{
     math::Point,
     path::{Path, Winding},
 };
-use metallic::{primitives::{Object, Shape, Text}, rendering_engine::RenderingEngine};
+use metallic::{
+    primitives::{Object, Shape, Text},
+    rendering_engine::RenderingEngine,
+};
 use pollster::block_on;
 use wgpu::Color;
 use winit::{
@@ -59,22 +62,14 @@ fn handle_window_event(
 }
 
 fn init_rendering_engine(rendering_engine: &mut RenderingEngine) -> anyhow::Result<()> {
+    let size = rendering_engine.size();
     let object_layers = rendering_engine.object_layers();
     object_layers.clear();
-    object_layers.push(vec![
-        Object::Shape(circle_helper(Point::new(200.0, 200.0), 100.0, Color::BLUE)),
-        Object::Text(Text {
-            text: "Hello, Prasad!".into(),
-            font_size: 100.0,
-            line_height: 300.0,
-            color: Color::RED,
-        }),
-    ]);
-    object_layers.push(vec![Object::Shape(circle_helper(
-        Point::new(100.0, 100.0),
-        100.0,
-        Color::GREEN,
-    ))]);
+    object_layers.push(vec![Object::Text(Text {
+        text: "Hello, Prasad!".into(),
+        size,
+        ..Default::default()
+    })]);
     Ok(())
 }
 

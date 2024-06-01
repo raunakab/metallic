@@ -13,10 +13,6 @@ winit = "0.30"
 version = "1.16"
 features = ["derive"]
 
-[dependencies.euclid]
-version = "0.22"
-features = ["bytemuck"]
-
 [dependencies.glyphon]
 git = "https://github.com/grovesNL/glyphon.git"
 

@@ -2,6 +2,7 @@ mod bundles;
 
 use std::path::Path;
 
+use lyon::math::Size;
 use wgpu::Color;
 use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
 
@@ -38,6 +39,11 @@ impl RenderingEngine {
 
     pub fn object_layers(&mut self) -> &mut Vec<Vec<Object>> {
         &mut self.scene_bundle.object_layers
+    }
+
+    pub fn size(&self) -> Size {
+        let size = self.wgpu_bundle.window.inner_size();
+        Size::new(size.width as _, size.height as _)
     }
 
     pub fn redraw(&self) {

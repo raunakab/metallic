@@ -467,7 +467,6 @@ version = "0.22.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0f0eb73b934648cd7a4a61f1b15391cd95dab0b4da6e2e66c2a072c144b4a20"
 dependencies = [
- "bytemuck",
  "num-traits",
 ]
 
@@ -931,7 +930,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytemuck",
- "euclid",
  "glyphon",
  "lyon",
  "pollster",

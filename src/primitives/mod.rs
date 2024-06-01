@@ -2,11 +2,9 @@
 mod tests;
 
 use bytemuck::{Pod, Zeroable};
-use euclid::default::Point2D;
-use glyphon::Color as GColor;
+use glyphon::{Attrs, Color as GColor, Shaping, TextBounds};
 use lyon::{
-    path::Path,
-    tessellation::{FillVertex, FillVertexConstructor},
+    math::{Point, Size}, path::Path, tessellation::{FillVertex, FillVertexConstructor}
 };
 use wgpu::{vertex_attr_array, Color, VertexAttribute};
 use winit::dpi::PhysicalSize;
@@ -29,12 +27,40 @@ pub struct Shape {
     pub color: Color,
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Text {
     pub text: String,
     pub font_size: f32,
     pub line_height: f32,
+    pub topleft: Point,
+    pub size: Size,
+    pub bounds: TextBounds,
+    pub scale: f32,
+    pub attrs: Attrs<'static>,
+    pub shaping: Shaping,
     pub color: Color,
+}
+
+impl Default for Text {
+    fn default() -> Self {
+        Self {
+            text: String::default(),
+            font_size: 30.0,
+            line_height: 30.0,
+            topleft: Point::zero(),
+            size: Size::zero(),
+            bounds: TextBounds {
+                top: 0,
+                left: 0,
+                bottom: i32::MAX,
+                right: i32::MAX,
+            },
+            scale: 1.0,
+            attrs: Attrs::new(),
+            shaping: Shaping::Basic,
+            color: Color::BLACK,
+        }
+    }
 }
 
 #[repr(C)]
@@ -51,13 +77,13 @@ impl Vertex {
 
 pub(crate) struct Ctor;
 
-impl FillVertexConstructor<Point2D<f32>> for Ctor {
-    fn new_vertex(&mut self, vertex: FillVertex) -> Point2D<f32> {
+impl FillVertexConstructor<Point> for Ctor {
+    fn new_vertex(&mut self, vertex: FillVertex) -> Point {
         vertex.position()
     }
 }
 
-pub(crate) fn to_vertex(point_2d: Point2D<f32>, size: PhysicalSize<u32>, color: Color) -> Vertex {
+pub(crate) fn to_vertex(point_2d: Point, size: PhysicalSize<u32>, color: Color) -> Vertex {
     let x = abs_to_scaled_1d(point_2d.x, size.width);
     let y = -abs_to_scaled_1d(point_2d.y, size.height);
     let Color { r, g, b, a } = color;

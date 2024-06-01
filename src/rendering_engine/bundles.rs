@@ -2,9 +2,10 @@ use std::{mem::size_of, path::Path};
 
 use bytemuck::cast_slice;
 use glyphon::{
-    Attrs, Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport
+    Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, SwashCache,
+    TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
-use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers};
+use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers, math::Point};
 use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
@@ -299,28 +300,26 @@ fn render_layer(
     let mut swash_cache = SwashCache::new();
     let cache = Cache::new(device);
     let mut viewport = Viewport::new(device, &cache);
-    viewport.update(queue, Resolution {
-        width: size.width,
-        height: size.height,
-    });
+    viewport.update(
+        queue,
+        Resolution {
+            width: size.width,
+            height: size.height,
+        },
+    );
     let mut atlas = TextAtlas::new(device, queue, &cache, texture_format);
     let mut text_renderer =
         TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
     let text_areas = create_buffers_output
-        .text_buffers
+        .owned_text_areas
         .iter()
-        .map(|&(ref buffer, color)| TextArea {
-            buffer,
-            top: 0.0,
-            left: 0.0,
-            scale: 1.0,
-            bounds: TextBounds {
-                left: 0,
-                top: 0,
-                right: size.width as _,
-                bottom: size.height as _,
-            },
-            default_color: convert_color(color),
+        .map(|owned_text_area| TextArea {
+            buffer: &owned_text_area.text_buffer,
+            top: owned_text_area.topleft.y,
+            left: owned_text_area.topleft.x,
+            scale: owned_text_area.scale,
+            bounds: owned_text_area.bounds,
+            default_color: convert_color(owned_text_area.color),
         })
         .collect::<Vec<_>>();
     text_renderer.prepare(
@@ -366,7 +365,15 @@ struct CreateBuffersOutput {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     len: usize,
-    text_buffers: Vec<(GBuffer, Color)>,
+    owned_text_areas: Vec<OwnedTextArea>,
+}
+
+struct OwnedTextArea {
+    text_buffer: GBuffer,
+    scale: f32,
+    topleft: Point,
+    bounds: TextBounds,
+    color: Color,
 }
 
 fn create_buffers(
@@ -381,7 +388,7 @@ fn create_buffers(
     let size = window.inner_size();
     let mut vertices = vec![];
     let mut indices = vec![];
-    let mut text_buffers = vec![];
+    let mut owned_text_areas = vec![];
     let mut offset = 0;
     for object in objects {
         match object {
@@ -407,6 +414,12 @@ fn create_buffers(
                 ref text,
                 font_size,
                 line_height,
+                topleft,
+                size,
+                bounds,
+                scale,
+                attrs,
+                shaping,
                 color,
             }) => {
                 let mut text_buffer = GBuffer::new(
@@ -418,11 +431,17 @@ fn create_buffers(
                 );
                 {
                     let mut text_buffer = text_buffer.borrow_with(font_system);
-                    text_buffer.set_size(size.width as _, size.height as _);
-                    text_buffer.set_text(&text, Attrs::new(), Shaping::Advanced);
+                    text_buffer.set_size(size.width, size.height);
+                    text_buffer.set_text(&text, attrs, shaping);
                     text_buffer.shape_until_scroll(false);
                 };
-                text_buffers.push((text_buffer, color));
+                owned_text_areas.push(OwnedTextArea {
+                    text_buffer,
+                    scale,
+                    topleft,
+                    bounds,
+                    color,
+                });
             }
         }
     }
@@ -440,6 +459,6 @@ fn create_buffers(
         vertex_buffer,
         index_buffer,
         len: indices.len(),
-        text_buffers,
+        owned_text_areas,
     })
 }
