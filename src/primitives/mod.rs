@@ -4,7 +4,9 @@ mod tests;
 use bytemuck::{Pod, Zeroable};
 use glyphon::{Attrs, Color as GColor, Shaping, TextBounds};
 use lyon::{
-    math::{Point, Size}, path::Path, tessellation::{FillVertex, FillVertexConstructor}
+    math::{Point, Size},
+    path::Path,
+    tessellation::{FillVertex, FillVertexConstructor},
 };
 use wgpu::{vertex_attr_array, Color, VertexAttribute};
 use winit::dpi::PhysicalSize;

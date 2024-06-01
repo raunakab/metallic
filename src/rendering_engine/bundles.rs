@@ -2,10 +2,12 @@ use std::{mem::size_of, path::Path};
 
 use bytemuck::cast_slice;
 use glyphon::{
-    Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, SwashCache,
-    TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
+    Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, SwashCache, TextArea, TextAtlas,
+    TextBounds, TextRenderer, Viewport,
 };
-use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, VertexBuffers, math::Point};
+use lyon::tessellation::{
+    math::Point, BuffersBuilder, FillOptions, FillTessellator, VertexBuffers,
+};
 use wgpu::{
     include_wgsl,
     util::{BufferInitDescriptor, DeviceExt},
