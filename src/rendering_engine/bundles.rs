@@ -20,7 +20,11 @@ use wgpu::{
     SurfaceConfiguration, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor,
     VertexBufferLayout, VertexState, VertexStepMode,
 };
-use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop, window::Window};
+use winit::{
+    dpi::PhysicalSize,
+    event_loop::ActiveEventLoop,
+    window::{Window, WindowAttributes},
+};
 
 use crate::{
     primitives::{convert_color, to_vertex, Ctor, Object, Text, Vertex},
@@ -81,7 +85,7 @@ pub fn resize(rendering_engine: &mut RenderingEngine, new_size: PhysicalSize<u32
 
 pub async fn create_wgpu_bundle(event_loop: &ActiveEventLoop) -> MetallicResult<WgpuBundle> {
     let instance = Instance::default();
-    let window = event_loop.create_window(Window::default_attributes())?;
+    let window = event_loop.create_window(WindowAttributes::default())?;
     let window: &'static _ = Box::leak(Box::new(window));
     let surface = instance.create_surface(window)?;
     let adapter = instance
