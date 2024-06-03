@@ -2,10 +2,10 @@ use std::{collections::BTreeMap, path::Path};
 
 use glyphon::FontSystem;
 use wgpu::{
-    BindGroup, Buffer, Color, CommandEncoderDescriptor, CompositeAlphaMode, Device,
-    DeviceDescriptor, Instance, InstanceDescriptor, LoadOp, Operations, PresentMode, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
+    Color, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Instance,
+    InstanceDescriptor, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment,
+    RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration,
+    TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -29,8 +29,6 @@ pub struct RenderingEngine {
     background_color: Color,
     object_engine: ObjectEngine,
     font_system: FontSystem,
-    // size_buffer: Buffer,
-    // size_bind_group: BindGroup,
 }
 
 impl Drop for RenderingEngine {
