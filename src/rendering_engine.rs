@@ -2,10 +2,12 @@ use std::{collections::BTreeMap, path::Path};
 
 use glyphon::FontSystem;
 use wgpu::{
-    Color, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Instance,
-    InstanceDescriptor, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, StoreOp, Surface, SurfaceConfiguration,
-    TextureFormat, TextureUsages, TextureViewDescriptor,
+    include_wgsl, Color, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor,
+    Face, FragmentState, Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations,
+    PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PresentMode,
+    PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -15,11 +17,61 @@ use winit::{
 
 use crate::{primitives::Object, InvalidConfigurationError, MetallicError, MetallicResult};
 
+// Shader Engine
+// =============================================================================
+
+#[derive(Default, Debug)]
+struct ShaderEngine {
+    solid: Option<Solid>,
+}
+
+#[derive(Debug)]
+struct Solid {
+    shader_module: ShaderModule,
+    render_pipeline_layout: PipelineLayout,
+    render_pipeline: RenderPipeline,
+}
+
+fn load_solid(shader_engine: &mut ShaderEngine, device: &Device) {
+    let shader_module = device.create_shader_module(include_wgsl!(
+        concat! { env!("CARGO_MANIFEST_DIR"), "/src/shaders/solid.wgsl" }
+    ));
+    let render_pipeline_layout =
+        device.create_pipeline_layout(&PipelineLayoutDescriptor::default());
+    let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        label: None,
+        layout: Some(&render_pipeline_layout),
+        vertex: VertexState {
+            module: &shader_module,
+            entry_point: "vs",
+            compilation_options: PipelineCompilationOptions::default(),
+            buffers: &[],
+        },
+        primitive: PrimitiveState {
+            cull_mode: Some(Face::Back),
+            ..Default::default()
+        },
+        depth_stencil: None,
+        multisample: MultisampleState::default(),
+        fragment: Some(FragmentState {
+            module: &shader_module,
+            entry_point: "fs",
+            compilation_options: PipelineCompilationOptions::default(),
+            targets: &[],
+        }),
+        multiview: None,
+    });
+    shader_engine.solid = Some(Solid {
+        shader_module,
+        render_pipeline_layout,
+        render_pipeline,
+    });
+}
+
 // Rendering Engine
 // =============================================================================
 
 pub struct RenderingEngine {
-    #[allow(dead_code)]
     instance: Instance,
     window: &'static Window,
     surface: Surface<'static>,
@@ -29,6 +81,7 @@ pub struct RenderingEngine {
     background_color: Color,
     object_engine: ObjectEngine,
     font_system: FontSystem,
+    shader_engine: ShaderEngine,
 }
 
 impl Drop for RenderingEngine {
@@ -80,6 +133,8 @@ pub async fn new_rendering_engine(
     surface.configure(&device, &surface_configuration);
     let font_system = FontSystem::new();
     let object_engine = ObjectEngine::default();
+    let mut shader_engine = ShaderEngine::default();
+    load_solid(&mut shader_engine, &device);
     Ok(RenderingEngine {
         instance,
         window,
@@ -90,6 +145,7 @@ pub async fn new_rendering_engine(
         background_color,
         font_system,
         object_engine,
+        shader_engine,
     })
 }
 
@@ -158,6 +214,16 @@ pub struct ObjectEngine {
 
 pub fn clear(object_engine: &mut ObjectEngine) {
     object_engine.object_matrix.clear();
+}
+
+pub fn remove_layer(object_engine: &mut ObjectEngine, layer: usize) -> Option<Vec<Object>> {
+    object_engine.object_matrix.remove(&layer)
+}
+
+pub fn remove_object(object_engine: &mut ObjectEngine, key: Key) -> Option<Object> {
+    let object_row = object_engine.object_matrix.get_mut(&key.0)?;
+    let object = object_row.remove(key.1);
+    Some(object)
 }
 
 pub fn add_object(object_engine: &mut ObjectEngine, layer: usize, object: Object) -> Key {
