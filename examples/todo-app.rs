@@ -1,5 +1,14 @@
-use metallic::rendering_engine::{
-    new_rendering_engine, render, request_redraw, resize, RenderingEngine,
+use lyon::{
+    geom::Box2D,
+    math::{Point, Size},
+    path::{Path, Winding},
+};
+use metallic::{
+    primitives::{Object, Shape},
+    rendering_engine::{
+        add_object, new_rendering_engine, object_engine, render, request_redraw, resize,
+        RenderingEngine,
+    },
 };
 use pollster::block_on;
 use wgpu::Color;
@@ -31,11 +40,9 @@ impl ApplicationHandler for App {
     }
 }
 
-async fn resume(
-    app: &mut App,
-    event_loop: &ActiveEventLoop,
-) -> anyhow::Result<()> {
-    let rendering_engine = new_rendering_engine(event_loop, Color::WHITE).await?;
+async fn resume(app: &mut App, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
+    let mut rendering_engine = new_rendering_engine(event_loop, Color::WHITE).await?;
+    init(&mut rendering_engine);
     app.rendering_engine = Some(rendering_engine);
     Ok(())
 }
@@ -55,8 +62,7 @@ fn handle_window_event(
             WindowEvent::KeyboardInput { event, .. } => match event.logical_key {
                 Key::Named(NamedKey::Control) => app.control_element_state = Some(event.state),
                 Key::Character(c)
-                    if app.control_element_state == Some(ElementState::Pressed)
-                        && c == "w" =>
+                    if app.control_element_state == Some(ElementState::Pressed) && c == "w" =>
                 {
                     exit(app, event_loop);
                 }
@@ -69,6 +75,26 @@ fn handle_window_event(
         }
     };
     Ok(())
+}
+
+fn init(rendering_engine: &mut RenderingEngine) {
+    let object_engine = object_engine(rendering_engine);
+    let _ = add_object(
+        object_engine,
+        0,
+        Object::Shape(Shape {
+            path: {
+                let mut builder = Path::builder();
+                builder.add_rectangle(
+                    &Box2D::from_origin_and_size(Point::origin(), Size::splat(100.0)),
+                    Winding::Positive,
+                );
+                builder.build()
+            },
+            color: Color::RED,
+        }),
+    );
+    todo!()
 }
 
 fn exit(app: &mut App, event_loop: &ActiveEventLoop) {
