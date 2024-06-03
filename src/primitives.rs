@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use bytemuck::{Pod, Zeroable};
 use glyphon::{Attrs, Shaping, TextBounds};
 use lyon::{
