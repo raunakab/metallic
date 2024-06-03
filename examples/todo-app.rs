@@ -1,84 +1,58 @@
-use lyon::{
-    math::Point,
-    path::{Path, Winding},
-};
-use metallic::{
-    primitives::{Object, Shape, Text},
-    rendering_engine::RenderingEngine,
+use metallic::rendering_engine::{
+    new_rendering_engine, render, request_redraw, resize, RenderingEngine,
 };
 use pollster::block_on;
 use wgpu::Color;
 use winit::{
     application::ApplicationHandler,
-    event::WindowEvent,
+    event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    keyboard::{Key, NamedKey},
     window::WindowId,
 };
 
 #[derive(Default)]
-pub struct App(Option<RenderingEngine>);
+pub struct App {
+    rendering_engine: Option<RenderingEngine>,
+    control_element_state: Option<ElementState>,
+}
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if let Err(error) = block_on(resume(self, event_loop)) {
-            panic!("Error resuming application: {:?}", error);
-        }
+        let rendering_engine = block_on(new_rendering_engine(event_loop, Color::WHITE)).unwrap();
+        self.rendering_engine = Some(rendering_engine);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
-        if let Err(error) = handle_window_event(self, event_loop, event) {
-            panic!("Error handling window event: {:?}", error);
-        }
+        if let Some(rendering_engine) = self.rendering_engine.as_mut() {
+            match event {
+                WindowEvent::CloseRequested | WindowEvent::Destroyed => exit(self, event_loop),
+                WindowEvent::Resized(new_size) => {
+                    resize(rendering_engine, new_size);
+                    request_redraw(rendering_engine);
+                }
+                WindowEvent::KeyboardInput { event, .. } => match event.logical_key {
+                    Key::Named(NamedKey::Control) => self.control_element_state = Some(event.state),
+                    Key::Character(c)
+                        if self.control_element_state == Some(ElementState::Pressed)
+                            && c == "w" =>
+                    {
+                        exit(self, event_loop);
+                    }
+                    _ => (),
+                },
+                WindowEvent::RedrawRequested => {
+                    render(rendering_engine).unwrap();
+                }
+                _ => (),
+            }
+        };
     }
 }
 
-async fn resume(app: &mut App, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-    let mut rendering_engine = RenderingEngine::new(event_loop, Color::WHITE).await?;
-    init_rendering_engine(&mut rendering_engine)?;
-    app.0 = Some(rendering_engine);
-    Ok(())
-}
-
-fn handle_window_event(
-    app: &mut App,
-    event_loop: &ActiveEventLoop,
-    event: WindowEvent,
-) -> anyhow::Result<()> {
-    if let Some(rendering_engine) = app.0.as_mut() {
-        match event {
-            WindowEvent::CloseRequested | WindowEvent::Destroyed => {
-                app.0 = None;
-                event_loop.exit();
-            }
-            WindowEvent::Resized(new_size) => {
-                rendering_engine.resize(new_size);
-                rendering_engine.redraw();
-            }
-            WindowEvent::RedrawRequested => rendering_engine.render()?,
-            _ => (),
-        };
-    };
-    Ok(())
-}
-
-fn init_rendering_engine(rendering_engine: &mut RenderingEngine) -> anyhow::Result<()> {
-    let size = rendering_engine.size();
-    let object_layers = rendering_engine.object_layers();
-    object_layers.clear();
-    object_layers.push(vec![Object::Text(Text {
-        text: "Hello, Prasad!".into(),
-        size,
-        ..Default::default()
-    })]);
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn circle_helper(center: Point, radius: f32, color: Color) -> Shape {
-    let mut builder = Path::builder();
-    builder.add_circle(center, radius, Winding::Positive);
-    let path = builder.build();
-    Shape { path, color }
+fn exit(app: &mut App, event_loop: &ActiveEventLoop) {
+    app.rendering_engine = None;
+    event_loop.exit();
 }
 
 fn main() -> anyhow::Result<()> {
