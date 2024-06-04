@@ -2,12 +2,7 @@ use std::{collections::BTreeMap, path::Path};
 
 use glyphon::FontSystem;
 use wgpu::{
-    include_wgsl, Color, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor,
-    Face, FragmentState, Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations,
-    PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PresentMode,
-    PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, StoreOp, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexState,
+    include_wgsl, Buffer, Color, CommandEncoder, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Face, FragmentState, IndexFormat, Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations, PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PresentMode, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor, VertexState
 };
 use winit::{
     dpi::PhysicalSize,
@@ -66,6 +61,26 @@ fn load_solid(shader_engine: &mut ShaderEngine, device: &Device) {
         render_pipeline_layout,
         render_pipeline,
     });
+}
+
+fn draw_solid(
+    shader_engine: &ShaderEngine, encoder: &mut CommandEncoder,
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+    length: usize,
+) -> MetallicResult<()> {
+    let solid = shader_engine.solid.as_ref().expect(
+        "Solid shader engine must be instantiated first; this must be a statically assertable fact",
+    );
+    let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+        color_attachments: &[],
+        ..Default::default()
+    });
+    render_pass.set_pipeline(&solid.render_pipeline);
+    render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+    render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint16);
+    render_pass.draw_indexed(0..(length as _), 0, 0..1);
+    Ok(())
 }
 
 // Rendering Engine
