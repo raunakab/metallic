@@ -2,7 +2,13 @@ use std::{collections::BTreeMap, path::Path};
 
 use glyphon::FontSystem;
 use wgpu::{
-    include_wgsl, Buffer, Color, CommandEncoder, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Face, FragmentState, IndexFormat, Instance, InstanceDescriptor, LoadOp, MultisampleState, Operations, PipelineCompilationOptions, PipelineLayout, PipelineLayoutDescriptor, PresentMode, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureView, TextureViewDescriptor, VertexState
+    include_wgsl, Buffer, Color, CommandEncoder, CommandEncoderDescriptor, CompositeAlphaMode,
+    Device, DeviceDescriptor, Face, FragmentState, IndexFormat, Instance, InstanceDescriptor,
+    LoadOp, MultisampleState, Operations, PipelineCompilationOptions, PipelineLayout,
+    PipelineLayoutDescriptor, PresentMode, PrimitiveState, Queue, RenderPassColorAttachment,
+    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    ShaderModule, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureUsages,
+    TextureView, TextureViewDescriptor, VertexState,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -64,7 +70,8 @@ fn load_solid(shader_engine: &mut ShaderEngine, device: &Device) {
 }
 
 fn draw_solid(
-    shader_engine: &ShaderEngine, encoder: &mut CommandEncoder,
+    shader_engine: &ShaderEngine,
+    encoder: &mut CommandEncoder,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     length: usize,
