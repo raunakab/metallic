@@ -69,7 +69,7 @@ fn handle_window_event(
                 _ => (),
             },
             WindowEvent::RedrawRequested => {
-                render(rendering_engine).unwrap();
+                render(rendering_engine)?;
             }
             _ => (),
         }
