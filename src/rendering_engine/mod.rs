@@ -3,7 +3,10 @@ pub mod object_engine;
 use std::{mem::size_of, path::Path};
 
 use bytemuck::{cast_slice, Pod, Zeroable};
-use glyphon::{Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, SwashCache, TextArea, TextAtlas, TextRenderer, Viewport};
+use glyphon::{
+    Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, SwashCache, TextArea, TextAtlas,
+    TextRenderer, Viewport,
+};
 use lyon::{
     algorithms::rounded_polygon::Point,
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers},
@@ -221,30 +224,60 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
                         let mut swash_cache = SwashCache::new();
                         let cache = Cache::new(&rendering_engine.device);
                         let mut viewport = Viewport::new(&rendering_engine.device, &cache);
-                        let mut atlas = TextAtlas::new(&rendering_engine.device, &rendering_engine.queue, &cache, rendering_engine.surface_configuration.format);
-                        let mut text_renderer = TextRenderer::new(&mut atlas, &rendering_engine.device, MultisampleState::default(), None);
-                        let mut buffer = GBuffer::new(&mut rendering_engine.font_system, Metrics { font_size: text.font_size, line_height: text.line_height });
+                        let mut atlas = TextAtlas::new(
+                            &rendering_engine.device,
+                            &rendering_engine.queue,
+                            &cache,
+                            rendering_engine.surface_configuration.format,
+                        );
+                        let mut text_renderer = TextRenderer::new(
+                            &mut atlas,
+                            &rendering_engine.device,
+                            MultisampleState::default(),
+                            None,
+                        );
+                        let mut buffer = GBuffer::new(
+                            &mut rendering_engine.font_system,
+                            Metrics {
+                                font_size: text.font_size,
+                                line_height: text.line_height,
+                            },
+                        );
                         {
                             let mut buffer = buffer.borrow_with(&mut rendering_engine.font_system);
                             buffer.set_size(size.width as _, size.height as _);
                             buffer.set_text(&text.text, text.attrs, text.shaping);
                             buffer.shape_until_scroll(true);
                         };
-                        viewport.update(&rendering_engine.queue, Resolution { width: size.width, height: size.height });
-                        text_renderer.prepare(&rendering_engine.device, &rendering_engine.queue, &mut rendering_engine.font_system, &mut atlas, &viewport, [TextArea {
-                            buffer: &buffer,
-                            top: text.topleft.y,
-                            left: text.topleft.x,
-                            scale: text.scale,
-                            bounds: text.bounds,
-                            default_color: convert_color(color),
-                        }], &mut swash_cache)?;
+                        viewport.update(
+                            &rendering_engine.queue,
+                            Resolution {
+                                width: size.width,
+                                height: size.height,
+                            },
+                        );
+                        text_renderer.prepare(
+                            &rendering_engine.device,
+                            &rendering_engine.queue,
+                            &mut rendering_engine.font_system,
+                            &mut atlas,
+                            &viewport,
+                            [TextArea {
+                                buffer: &buffer,
+                                top: text.topleft.y,
+                                left: text.topleft.x,
+                                scale: text.scale,
+                                bounds: text.bounds,
+                                default_color: convert_color(color),
+                            }],
+                            &mut swash_cache,
+                        )?;
                         buffers.push(Something::B(B {
                             text_renderer,
                             atlas,
                             viewport,
                         }));
-                    },
+                    }
                 }
             }
         }
@@ -295,15 +328,23 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
         });
         for something in &buffers {
             match something {
-                &Something::A(A { ref vertex_buffer, ref index_buffer, length }) => {
+                &Something::A(A {
+                    ref vertex_buffer,
+                    ref index_buffer,
+                    length,
+                }) => {
                     render_pass.set_pipeline(&render_pipeline);
                     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                     render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint16);
                     render_pass.draw_indexed(0..(length as _), 0, 0..1);
-                },
-                Something::B(B { text_renderer, atlas, viewport }) => {
+                }
+                Something::B(B {
+                    text_renderer,
+                    atlas,
+                    viewport,
+                }) => {
                     text_renderer.render(atlas, viewport, &mut render_pass)?;
-                },
+                }
             }
         }
     };

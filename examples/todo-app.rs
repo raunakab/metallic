@@ -6,9 +6,8 @@ use lyon::{
 use metallic::{
     primitives::{shape, text, Brush, Text},
     rendering_engine::{
-        new_rendering_engine, object_engine::add_object, render, request_redraw, resize,
-        RenderingEngine,
-        object_engine,
+        new_rendering_engine, object_engine, object_engine::add_object, render, request_redraw,
+        resize, RenderingEngine,
     },
 };
 use pollster::block_on;

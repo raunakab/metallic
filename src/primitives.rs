@@ -1,4 +1,4 @@
-use glyphon::{Attrs, Shaping, TextBounds, Color as GColor};
+use glyphon::{Attrs, Color as GColor, Shaping, TextBounds};
 use lyon::{
     math::{Point, Size},
     path::Path,
