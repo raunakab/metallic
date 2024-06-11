@@ -26,7 +26,8 @@ use winit::{
 };
 
 use crate::{
-    primitives::{Brush, ObjectKind}, rendering_engine::object_engine::ObjectEngine,
+    primitives::{Brush, ObjectKind},
+    rendering_engine::object_engine::ObjectEngine,
     InvalidConfigurationError, MetallicError, MetallicResult,
 };
 
@@ -166,7 +167,10 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
                                 };
                                 let x = convert(x, size.width);
                                 let y = -convert(y, size.height);
-                                Vertex { position: [x, y], color: [r as _, g as _, b as _, a as _] }
+                                Vertex {
+                                    position: [x, y],
+                                    color: [r as _, g as _, b as _, a as _],
+                                }
                             });
                         let mut tessellator = FillTessellator::new();
                         tessellator.tessellate_path(
