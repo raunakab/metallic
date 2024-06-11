@@ -3,7 +3,7 @@ pub mod object_engine;
 use std::{mem::size_of, path::Path};
 
 use bytemuck::{cast_slice, Pod, Zeroable};
-use glyphon::FontSystem;
+use glyphon::{Buffer as GBuffer, Cache, FontSystem, Metrics, Resolution, SwashCache, TextArea, TextAtlas, TextRenderer, Viewport};
 use lyon::{
     algorithms::rounded_polygon::Point,
     tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers},
@@ -26,7 +26,7 @@ use winit::{
 };
 
 use crate::{
-    primitives::{Brush, ObjectKind},
+    primitives::{convert_color, Brush, ObjectKind},
     rendering_engine::object_engine::ObjectEngine,
     InvalidConfigurationError, MetallicError, MetallicResult,
 };
@@ -147,13 +147,29 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
         .device
         .create_command_encoder(&CommandEncoderDescriptor::default());
     {
-        let mut buffers: Vec<(Buffer, Buffer, usize)> = vec![];
+        enum Something {
+            A(A),
+            B(B),
+        }
+        struct A {
+            vertex_buffer: Buffer,
+            index_buffer: Buffer,
+            length: usize,
+        }
+        struct B {
+            text_renderer: TextRenderer,
+            atlas: TextAtlas,
+            viewport: Viewport,
+        }
+
+        // let mut buffers: Vec<(Buffer, Buffer, usize)> = vec![];
+        let mut buffers: Vec<Something> = vec![];
         let shader = rendering_engine
             .device
             .create_shader_module(include_wgsl!("../shaders/solid.wgsl"));
         for (_, object_row) in &rendering_engine.object_engine.object_matrix {
             for object in object_row {
-                let Color { r, g, b, a } = match object.brush {
+                let color = match object.brush {
                     Brush::Solid(color) => color,
                 };
                 match &object.object_kind {
@@ -169,7 +185,7 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
                                 let y = -convert(y, size.height);
                                 Vertex {
                                     position: [x, y],
-                                    color: [r as _, g as _, b as _, a as _],
+                                    color: [color.r as _, color.g as _, color.b as _, color.a as _],
                                 }
                             });
                         let mut tessellator = FillTessellator::new();
@@ -178,7 +194,7 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
                             &FillOptions::default(),
                             &mut buffers_builder,
                         )?;
-                        let len = geometry.indices.len();
+                        let length = geometry.indices.len();
                         let vertex_buffer =
                             rendering_engine
                                 .device
@@ -195,9 +211,40 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
                                     contents: cast_slice(&geometry.indices),
                                     usage: BufferUsages::INDEX,
                                 });
-                        buffers.push((vertex_buffer, index_buffer, len));
+                        buffers.push(Something::A(A {
+                            vertex_buffer,
+                            index_buffer,
+                            length,
+                        }));
                     }
-                    ObjectKind::Text(..) => todo!(),
+                    ObjectKind::Text(text) => {
+                        let mut swash_cache = SwashCache::new();
+                        let cache = Cache::new(&rendering_engine.device);
+                        let mut viewport = Viewport::new(&rendering_engine.device, &cache);
+                        let mut atlas = TextAtlas::new(&rendering_engine.device, &rendering_engine.queue, &cache, rendering_engine.surface_configuration.format);
+                        let mut text_renderer = TextRenderer::new(&mut atlas, &rendering_engine.device, MultisampleState::default(), None);
+                        let mut buffer = GBuffer::new(&mut rendering_engine.font_system, Metrics { font_size: text.font_size, line_height: text.line_height });
+                        {
+                            let mut buffer = buffer.borrow_with(&mut rendering_engine.font_system);
+                            buffer.set_size(size.width as _, size.height as _);
+                            buffer.set_text(&text.text, text.attrs, text.shaping);
+                            buffer.shape_until_scroll(true);
+                        };
+                        viewport.update(&rendering_engine.queue, Resolution { width: size.width, height: size.height });
+                        text_renderer.prepare(&rendering_engine.device, &rendering_engine.queue, &mut rendering_engine.font_system, &mut atlas, &viewport, [TextArea {
+                            buffer: &buffer,
+                            top: text.topleft.y,
+                            left: text.topleft.x,
+                            scale: text.scale,
+                            bounds: text.bounds,
+                            default_color: convert_color(color),
+                        }], &mut swash_cache)?;
+                        buffers.push(Something::B(B {
+                            text_renderer,
+                            atlas,
+                            viewport,
+                        }));
+                    },
                 }
             }
         }
@@ -246,11 +293,18 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
             })],
             ..Default::default()
         });
-        for &(ref vertex_buffer, ref index_buffer, len) in &buffers {
-            render_pass.set_pipeline(&render_pipeline);
-            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint16);
-            render_pass.draw_indexed(0..(len as _), 0, 0..1);
+        for something in &buffers {
+            match something {
+                &Something::A(A { ref vertex_buffer, ref index_buffer, length }) => {
+                    render_pass.set_pipeline(&render_pipeline);
+                    render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                    render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint16);
+                    render_pass.draw_indexed(0..(length as _), 0, 0..1);
+                },
+                Something::B(B { text_renderer, atlas, viewport }) => {
+                    text_renderer.render(atlas, viewport, &mut render_pass)?;
+                },
+            }
         }
     };
     let command_buffer = encoder.finish();

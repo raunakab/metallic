@@ -1,4 +1,4 @@
-use glyphon::{Attrs, Shaping, TextBounds};
+use glyphon::{Attrs, Shaping, TextBounds, Color as GColor};
 use lyon::{
     math::{Point, Size},
     path::Path,
@@ -75,4 +75,22 @@ pub fn shape(path: Path, brush: Brush) -> Object {
         object_kind: ObjectKind::Shape(path),
         brush,
     }
+}
+
+pub fn text(text: Text, brush: Brush) -> Object {
+    Object {
+        object_kind: ObjectKind::Text(text),
+        brush,
+    }
+}
+
+pub(crate) fn convert_color(Color { r, g, b, a }: Color) -> GColor {
+    fn convert(x: f64) -> u8 {
+        (x * (u8::MAX as f64)) as u8
+    }
+    let r = convert(r);
+    let g = convert(g);
+    let b = convert(b);
+    let a = convert(a);
+    GColor::rgba(r, g, b, a)
 }
