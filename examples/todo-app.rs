@@ -4,10 +4,10 @@ use lyon::{
     path::{Path, Winding},
 };
 use metallic::{
-    primitives::{Object, Shape},
+    primitives::{shape, Brush},
     rendering_engine::{
-        add_object, new_rendering_engine, object_engine, render, request_redraw, resize,
-        RenderingEngine,
+        new_rendering_engine, object_engine, object_engine::add_object, render, request_redraw,
+        resize, RenderingEngine,
     },
 };
 use pollster::block_on;
@@ -82,19 +82,30 @@ fn init(rendering_engine: &mut RenderingEngine) {
     let _ = add_object(
         object_engine,
         0,
-        Object::Shape(Shape {
-            path: {
-                let mut builder = Path::builder();
-                builder.add_rectangle(
-                    &Box2D::from_origin_and_size(Point::origin(), Size::splat(100.0)),
+        shape(
+            {
+                let mut path = Path::builder();
+                path.add_circle(Point::splat(100.0), 10.0, Winding::Positive);
+                path.build()
+            },
+            Brush::Solid(Color::BLUE),
+        ),
+    );
+    let _ = add_object(
+        object_engine,
+        0,
+        shape(
+            {
+                let mut path = Path::builder();
+                path.add_rectangle(
+                    &Box2D::from_origin_and_size(Point::zero(), Size::splat(100.0)),
                     Winding::Positive,
                 );
-                builder.build()
+                path.build()
             },
-            color: Color::RED,
-        }),
+            Brush::Solid(Color::RED),
+        ),
     );
-    todo!()
 }
 
 fn exit(app: &mut App, event_loop: &ActiveEventLoop) {
