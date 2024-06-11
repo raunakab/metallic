@@ -197,6 +197,7 @@ pub fn render(rendering_engine: &mut RenderingEngine) -> MetallicResult<()> {
                                 });
                         buffers.push((vertex_buffer, index_buffer, len));
                     }
+                    ObjectKind::Text(..) => todo!(),
                 }
             }
         }

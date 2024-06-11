@@ -1,4 +1,8 @@
-use lyon::path::Path;
+use glyphon::{Attrs, Shaping, TextBounds};
+use lyon::{
+    math::{Point, Size},
+    path::Path,
+};
 use wgpu::Color;
 
 #[derive(Default, Debug, Clone)]
@@ -10,6 +14,7 @@ pub struct Object {
 #[derive(Debug, Clone)]
 pub enum ObjectKind {
     Shape(Path),
+    Text(Text),
 }
 
 impl Default for ObjectKind {
@@ -29,41 +34,41 @@ impl Default for Brush {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct Text {
-//     pub text: String,
-//     pub font_size: f32,
-//     pub line_height: f32,
-//     pub topleft: Point,
-//     pub size: Size,
-//     pub bounds: TextBounds,
-//     pub scale: f32,
-//     pub attrs: Attrs<'static>,
-//     pub shaping: Shaping,
-//     pub color: Color,
-// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Text {
+    pub text: String,
+    pub font_size: f32,
+    pub line_height: f32,
+    pub topleft: Point,
+    pub size: Size,
+    pub bounds: TextBounds,
+    pub scale: f32,
+    pub attrs: Attrs<'static>,
+    pub shaping: Shaping,
+    pub color: Color,
+}
 
-// impl Default for Text {
-//     fn default() -> Self {
-//         Self {
-//             text: String::default(),
-//             font_size: 30.0,
-//             line_height: 30.0,
-//             topleft: Point::zero(),
-//             size: Size::zero(),
-//             bounds: TextBounds {
-//                 top: 0,
-//                 left: 0,
-//                 bottom: i32::MAX,
-//                 right: i32::MAX,
-//             },
-//             scale: 1.0,
-//             attrs: Attrs::new(),
-//             shaping: Shaping::Basic,
-//             color: Color::BLACK,
-//         }
-//     }
-// }
+impl Default for Text {
+    fn default() -> Self {
+        Self {
+            text: String::default(),
+            font_size: 30.0,
+            line_height: 30.0,
+            topleft: Point::zero(),
+            size: Size::zero(),
+            bounds: TextBounds {
+                top: 0,
+                left: 0,
+                bottom: i32::MAX,
+                right: i32::MAX,
+            },
+            scale: 1.0,
+            attrs: Attrs::new(),
+            shaping: Shaping::Basic,
+            color: Color::BLACK,
+        }
+    }
+}
 
 pub fn shape(path: Path, brush: Brush) -> Object {
     Object {
