@@ -4,10 +4,11 @@ use lyon::{
     path::{Path, Winding},
 };
 use metallic::{
-    primitives::{shape, Brush},
+    primitives::{shape, text, Brush, Text},
     rendering_engine::{
-        new_rendering_engine, object_engine, object_engine::add_object, render, request_redraw,
-        resize, RenderingEngine,
+        new_rendering_engine, object_engine::add_object, render, request_redraw, resize,
+        RenderingEngine,
+        object_engine,
     },
 };
 use pollster::block_on;
@@ -102,6 +103,17 @@ fn init(rendering_engine: &mut RenderingEngine) {
                     Winding::Positive,
                 );
                 path.build()
+            },
+            Brush::Solid(Color::GREEN),
+        ),
+    );
+    let _ = add_object(
+        object_engine,
+        0,
+        text(
+            Text {
+                text: "Hello, Prasad!".into(),
+                ..Default::default()
             },
             Brush::Solid(Color::RED),
         ),
